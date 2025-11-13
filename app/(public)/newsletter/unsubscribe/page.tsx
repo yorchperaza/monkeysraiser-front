@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from "react";
+import React, { useState, useEffect, FormEvent, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -20,8 +20,8 @@ const BE = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/+$/, "");
 
 type Status = "idle" | "loading" | "success" | "error";
 
-/* ---------------- PAGE ---------------- */
-export default function NewsletterUnsubscribePage() {
+/* ---------------- INNER PAGE (uses useSearchParams) ---------------- */
+function NewsletterUnsubscribeInner() {
     const searchParams = useSearchParams();
     const [email, setEmail] = useState("");
     const [status, setStatus] = useState<Status>("idle");
@@ -109,7 +109,7 @@ export default function NewsletterUnsubscribePage() {
                         <h1 className="mb-3 text-4xl font-black leading-tight text-gray-900">
                             Unsubscribe from updates
                         </h1>
-                        <p className="text-sm md:text-base text-gray-600">
+                        <p className="text-sm text-gray-600 md:text-base">
                             We’re sorry to see you go. Enter your email below and we’ll stop sending you MonkeysRaiser
                             newsletter updates. You can always subscribe again later.
                         </p>
@@ -186,5 +186,20 @@ export default function NewsletterUnsubscribePage() {
                 </div>
             </section>
         </main>
+    );
+}
+
+/* ---------------- DEFAULT EXPORT: wrap in Suspense ---------------- */
+export default function NewsletterUnsubscribePage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex min-h-screen items-center justify-center text-sm text-gray-500">
+                    Loading unsubscribe page…
+                </div>
+            }
+        >
+            <NewsletterUnsubscribeInner />
+        </Suspense>
     );
 }

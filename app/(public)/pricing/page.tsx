@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import Link from "next/link";
 import FounderRegister from "@/components/auth/FounderRegister";
 
@@ -176,6 +176,18 @@ function ComparisonTable() {
     );
 }
 
+/* --------- Optional simple fallback while FounderRegister loads --------- */
+function FounderRegisterFallback() {
+    return (
+        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 h-5 w-32 rounded bg-gray-200" />
+            <div className="mb-2 h-9 w-full rounded-xl bg-gray-200" />
+            <div className="mb-2 h-9 w-full rounded-xl bg-gray-200" />
+            <div className="h-9 w-28 rounded-xl bg-gray-200" />
+        </div>
+    );
+}
+
 /* ---------------- PAGE ---------------- */
 export default function PricingPage() {
     return (
@@ -214,16 +226,20 @@ export default function PricingPage() {
                             </div>
                         </div>
 
-                        {/* Founder Register (replaces the old mock card) */}
+                        {/* Founder Register wrapped in Suspense */}
                         <div className="flex items-center justify-center">
-                            <FounderRegister redirectTo="/me?welcome=1" compact />
+                            <Suspense fallback={<FounderRegisterFallback />}>
+                                <FounderRegister redirectTo="/me?welcome=1" compact />
+                            </Suspense>
                         </div>
                     </div>
 
                     {/* Subheading */}
                     <div className="mx-auto mt-16 max-w-3xl text-center">
                         <h2 className="text-2xl font-black text-gray-900">Find the Right Launchpad for Your Startup</h2>
-                        <p className="mt-2 text-gray-600">From first exposure to full investor acceleration, our plans match your ambition and stage.</p>
+                        <p className="mt-2 text-gray-600">
+                            From first exposure to full investor acceleration, our plans match your ambition and stage.
+                        </p>
                     </div>
                 </div>
             </section>
@@ -306,8 +322,15 @@ export default function PricingPage() {
 
                     {/* Legal */}
                     <p className="mx-auto mt-6 max-w-4xl text-center text-xs text-gray-500">
-                        By continuing you agree to our <a href="/terms" className="font-medium text-blue-600 hover:underline">Terms</a> and{" "}
-                        <a href="/privacy" className="font-medium text-blue-600 hover:underline">Privacy Policy</a>.
+                        By continuing you agree to our{" "}
+                        <a href="/terms" className="font-medium text-blue-600 hover:underline">
+                            Terms
+                        </a>{" "}
+                        and{" "}
+                        <a href="/privacy" className="font-medium text-blue-600 hover:underline">
+                            Privacy Policy
+                        </a>
+                        .
                     </p>
                 </div>
             </section>

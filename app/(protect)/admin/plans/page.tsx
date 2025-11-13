@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -34,7 +34,11 @@ type PlansResponse = {
     items: Plan[];
 };
 
-export default function AdminPlansListPage() {
+/**
+ * Inner component that actually uses useSearchParams.
+ * This MUST be rendered inside a <Suspense> boundary.
+ */
+function AdminPlansListInner() {
     const router = useRouter();
     const qs = useSearchParams();
 
@@ -52,7 +56,8 @@ export default function AdminPlansListPage() {
     const [pages, setPages] = useState(1);
     const [searchText, setSearchText] = useState(q);
 
-    const token = typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "";
+    const token =
+        typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "";
 
     // fetcher
     useEffect(() => {
@@ -69,26 +74,35 @@ export default function AdminPlansListPage() {
         fetch(`${BE}/plans?${params.toString()}`, {
             headers: { Authorization: `Bearer ${token}` },
         })
-            .then(async (r) => {
-                if (!alive) return;
+            .then(async (r): Promise<PlansResponse> => {
+                if (!alive) {
+                    // stop the chain – rejected promise is fine, caller will ignore due to `alive` check
+                    return Promise.reject(new Error("aborted"));
+                }
+
                 if (!r.ok) {
                     let msg = "Failed to load plans.";
                     try {
                         const j = await r.json();
                         if (typeof j?.message === "string") msg = j.message;
-                    } catch {}
+                    } catch {
+                        // ignore parse error
+                    }
                     throw new Error(msg);
                 }
+
                 return r.json() as Promise<PlansResponse>;
             })
             .then((data) => {
-                if (!alive) return;
+                if (!alive || !data) return;
                 setPlans(Array.isArray(data.items) ? data.items : []);
                 setTotal(Number(data.total || 0));
                 setPages(Number(data.pages || 1));
             })
             .catch((e: Error) => {
                 if (!alive) return;
+                // ignore the "aborted" error
+                if (e.message === "aborted") return;
                 setErrorMsg(e.message || "Failed to load plans.");
             })
             .finally(() => {
@@ -100,7 +114,7 @@ export default function AdminPlansListPage() {
             alive = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [BE, page, perPage, q, includeStripe, token]);
+    }, [page, perPage, q, includeStripe, token]);
 
     // handlers
     function pushWith(params: Record<string, string | number | undefined>) {
@@ -128,8 +142,8 @@ export default function AdminPlansListPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (!r.ok) throw new Error("Refresh failed");
-            // no need to use the payload; re-fetch list for consistency
-            pushWith({}); // triggers route replace; but we’ll just refetch manually:
+
+            // re-fetch list
             const params = new URLSearchParams();
             params.set("page", String(page));
             params.set("perPage", String(perPage));
@@ -143,7 +157,8 @@ export default function AdminPlansListPage() {
             setPlans(Array.isArray(data.items) ? data.items : []);
             setTotal(Number(data.total || 0));
             setPages(Number(data.pages || 1));
-        } catch {
+        } catch (e) {
+            console.error(e);
             setErrorMsg("Stripe refresh failed.");
         } finally {
             setLoading(false);
@@ -159,15 +174,11 @@ export default function AdminPlansListPage() {
     const endIdx = Math.min(total, page * perPage);
 
     const currencyHint = useMemo(() => {
-        // purely presentational helper
-        // you can expand to detect by plan or global setting
         return "currency";
     }, []);
 
     function formatSmallestUnit(x?: number | null) {
         if (x === null || x === undefined) return "—";
-        // we don’t know the currency symbol here; just show normalized amount
-        // If you want to inject a symbol, map by currency at fetch time.
         const major = (x / 100).toFixed(2);
         return major;
     }
@@ -236,7 +247,10 @@ export default function AdminPlansListPage() {
             )}
 
             {/* Controls */}
-            <form onSubmit={submitSearch} className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <form
+                onSubmit={submitSearch}
+                className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+            >
                 {/* Dark search */}
                 <div className="flex w-full max-w-lg items-center rounded-xl border-2 border-slate-700 bg-slate-900 px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-slate-600">
                     <svg className="mr-2 h-4 w-4 text-slate-300" viewBox="0 0 24 24" fill="none">
@@ -287,7 +301,7 @@ export default function AdminPlansListPage() {
                     <button
                         type="submit"
                         className="rounded-xl px-3 py-2 text-sm font-semibold text-white shadow"
-                        style={{ background: `linear-gradient(135deg, ${brand.darkBlue}, #0B1220)` }}
+                        style={{ background: `linear-gradient(135deg, ${brand.darkBlue}, "#0B1220")` }}
                     >
                         Search
                     </button>
@@ -319,18 +333,35 @@ export default function AdminPlansListPage() {
                         {loading ? (
                             [...Array(5)].map((_, i) => (
                                 <tr key={i} className="animate-pulse">
-                                    <td className="px-4 py-4"><div className="h-4 w-24 rounded bg-gray-100" /></td>
-                                    <td className="px-4 py-4"><div className="h-4 w-20 rounded bg-gray-100" /></td>
-                                    <td className="px-4 py-4"><div className="h-4 w-14 rounded bg-gray-100" /></td>
-                                    <td className="px-4 py-4"><div className="h-4 w-28 rounded bg-gray-100" /></td>
-                                    <td className="px-4 py-4"><div className="h-4 w-28 rounded bg-gray-100" /></td>
-                                    <td className="px-4 py-4"><div className="h-4 w-10 rounded bg-gray-100" /></td>
-                                    <td className="px-4 py-4"><div className="h-8 w-28 rounded bg-gray-100" /></td>
+                                    <td className="px-4 py-4">
+                                        <div className="h-4 w-24 rounded bg-gray-100" />
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="h-4 w-20 rounded bg-gray-100" />
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="h-4 w-14 rounded bg-gray-100" />
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="h-4 w-28 rounded bg-gray-100" />
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="h-4 w-28 rounded bg-gray-100" />
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="h-4 w-10 rounded bg-gray-100" />
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="h-8 w-28 rounded bg-gray-100" />
+                                    </td>
                                 </tr>
                             ))
                         ) : plans.length === 0 ? (
                             <tr>
-                                <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={7}>
+                                <td
+                                    className="px-4 py-6 text-center text-sm text-gray-500"
+                                    colSpan={7}
+                                >
                                     No plans found.
                                 </td>
                             </tr>
@@ -342,9 +373,10 @@ export default function AdminPlansListPage() {
                                     </td>
                                     <td className="px-4 py-3 text-gray-700">{p.slug || "—"}</td>
                                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-700">
-                        {formatSmallestUnit(p.price)} <span className="text-gray-400">({currencyHint})</span>
-                      </span>
+                                            <span className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-700">
+                                                {formatSmallestUnit(p.price)}{" "}
+                                                <span className="text-gray-400">({currencyHint})</span>
+                                            </span>
                                     </td>
                                     <td className="px-4 py-3">
                                         {p.stripe_price_id ? (
@@ -354,10 +386,24 @@ export default function AdminPlansListPage() {
                                                 title="Copy"
                                                 className="group inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                                             >
-                                                <span className="truncate max-w-[160px]">{p.stripe_price_id}</span>
-                                                <svg className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100" viewBox="0 0 24 24" fill="none">
-                                                    <path d="M9 9h9v12H9z" stroke="currentColor" strokeWidth="2" />
-                                                    <path d="M6 15H5a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1" stroke="currentColor" strokeWidth="2" />
+                                                    <span className="truncate max-w-[160px]">
+                                                        {p.stripe_price_id}
+                                                    </span>
+                                                <svg
+                                                    className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                >
+                                                    <path
+                                                        d="M9 9h9v12H9z"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    />
+                                                    <path
+                                                        d="M6 15H5a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    />
                                                 </svg>
                                             </button>
                                         ) : (
@@ -372,10 +418,24 @@ export default function AdminPlansListPage() {
                                                 title="Copy"
                                                 className="group inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                                             >
-                                                <span className="truncate max-w-[160px]">{p.stripe_product_id}</span>
-                                                <svg className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100" viewBox="0 0 24 24" fill="none">
-                                                    <path d="M9 9h9v12H9z" stroke="currentColor" strokeWidth="2" />
-                                                    <path d="M6 15H5a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1" stroke="currentColor" strokeWidth="2" />
+                                                    <span className="truncate max-w-[160px]">
+                                                        {p.stripe_product_id}
+                                                    </span>
+                                                <svg
+                                                    className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                >
+                                                    <path
+                                                        d="M9 9h9v12H9z"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    />
+                                                    <path
+                                                        d="M6 15H5a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    />
                                                 </svg>
                                             </button>
                                         ) : (
@@ -414,7 +474,10 @@ export default function AdminPlansListPage() {
                     {loading ? (
                         <div className="space-y-3 p-3">
                             {[...Array(4)].map((_, i) => (
-                                <div key={i} className="animate-pulse rounded-xl border border-gray-200 p-3">
+                                <div
+                                    key={i}
+                                    className="animate-pulse rounded-xl border border-gray-200 p-3"
+                                >
                                     <div className="mb-2 h-4 w-32 rounded bg-gray-100" />
                                     <div className="mb-2 h-3 w-24 rounded bg-gray-100" />
                                     <div className="mb-2 h-3 w-20 rounded bg-gray-100" />
@@ -423,13 +486,17 @@ export default function AdminPlansListPage() {
                             ))}
                         </div>
                     ) : plans.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-gray-500">No plans found.</div>
+                        <div className="p-4 text-center text-sm text-gray-500">
+                            No plans found.
+                        </div>
                     ) : (
                         <div className="divide-y divide-gray-100">
                             {plans.map((p) => (
                                 <div key={p.id} className="space-y-2 p-4">
                                     <div className="flex items-center justify-between">
-                                        <div className="font-semibold text-gray-900">{p.name || "—"}</div>
+                                        <div className="font-semibold text-gray-900">
+                                            {p.name || "—"}
+                                        </div>
                                         <Link
                                             href={`/admin/plans/${p.id}`}
                                             className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-700"
@@ -437,14 +504,22 @@ export default function AdminPlansListPage() {
                                             Open
                                         </Link>
                                     </div>
-                                    <div className="text-xs text-gray-600">/{p.slug || "—"}</div>
+                                    <div className="text-xs text-gray-600">
+                                        /{p.slug || "—"}
+                                    </div>
                                     <div className="text-sm">
-                    <span className="rounded-md bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-700">
-                      {formatSmallestUnit(p.price)} <span className="text-gray-400">({currencyHint})</span>
-                    </span>
+                                        <span className="rounded-md bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-700">
+                                            {formatSmallestUnit(p.price)}{" "}
+                                            <span className="text-gray-400">
+                                                ({currencyHint})
+                                            </span>
+                                        </span>
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                        Projects: <span className="font-semibold text-gray-700">{p.projects?.length ?? 0}</span>
+                                        Projects:{" "}
+                                        <span className="font-semibold text-gray-700">
+                                            {p.projects?.length ?? 0}
+                                        </span>
                                     </div>
                                     <div className="flex flex-wrap gap-2 pt-1">
                                         {p.stripe_price_id ? (
@@ -506,5 +581,16 @@ export default function AdminPlansListPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+/**
+ * Default export: wraps the search-params-using inner component in Suspense.
+ */
+export default function AdminPlansListPage() {
+    return (
+        <Suspense fallback={<div className="p-4 text-sm text-gray-500">Loading plans…</div>}>
+            <AdminPlansListInner />
+        </Suspense>
     );
 }

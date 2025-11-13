@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import countriesData from "world-countries";
@@ -69,7 +69,6 @@ function fmtWhen(iso?: string | null): string {
     return isNaN(d.getTime()) ? "—" : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 function isAbortError(err: unknown): boolean {
-    // cross-browser AbortError guard
     if (err instanceof DOMException) return err.name === "AbortError";
     return (typeof err === "object" && err !== null && "name" in err && (err as { name?: string }).name === "AbortError");
 }
@@ -196,7 +195,6 @@ const iso2ToFlag = (iso?: string | null) => {
 
 const formatLocation = (loc: LocationLite) => {
     if (!loc) return "—";
-    // loc is an object: { country?, state?, iso2? }
     const parts = [loc.state || "", loc.country || ""].filter(Boolean).join(", ");
     const flag = iso2ToFlag(loc.iso2 || "");
     return parts ? `${flag ? flag + " " : ""}${parts}` : "—";
@@ -223,9 +221,9 @@ function StagePill({ stage }: { stage: FundingStage | null }) {
             className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold"
             style={{ backgroundColor: st.bg, color: st.text, borderColor: st.border }}
         >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: st.border }} />
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: st.border }} />
             {stage}
-    </span>
+        </span>
     );
 }
 
@@ -263,7 +261,7 @@ function AdminRow({
         md:grid-cols-[8rem_minmax(0,1fr)_auto]
       "
         >
-            {/* === IMAGE COLUMN === */}
+            {/* IMAGE COLUMN */}
             <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                 {img ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -279,7 +277,7 @@ function AdminRow({
                 )}
             </div>
 
-            {/* === TEXT COLUMN === */}
+            {/* TEXT COLUMN */}
             <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                     <Link
@@ -295,14 +293,14 @@ function AdminRow({
 
                     {p.superBoost && (
                         <span className="rounded-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 px-2.5 py-0.5 text-xs font-bold text-white">
-              Super Boost
-            </span>
+                            Super Boost
+                        </span>
                     )}
 
                     {!p.superBoost && p.boost && (
                         <span className="rounded-full bg-gradient-to-r from-purple-600 to-blue-600 px-2.5 py-0.5 text-xs font-bold text-white">
-              Featured
-            </span>
+                            Featured
+                        </span>
                     )}
                 </div>
 
@@ -311,32 +309,32 @@ function AdminRow({
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <svg
-                className="h-4 w-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-            >
-              <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-              {formatLocation(p.location)}
-          </span>
+                    <span className="flex items-center gap-1">
+                        <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                        >
+                            <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
+                            <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        {formatLocation(p.location)}
+                    </span>
 
                     <span>•</span>
 
                     <span>
-            Founded {p.founded ? new Date(p.founded).getFullYear() : "—"}
-          </span>
+                        Founded {p.founded ? new Date(p.founded).getFullYear() : "—"}
+                    </span>
 
                     <span>•</span>
 
                     <span>
-            Seeking {currency(p.foundingTarget)} / Committed{" "}
+                        Seeking {currency(p.foundingTarget)} / Committed{" "}
                         {currency(p.capitalSought)}
-          </span>
+                    </span>
 
                     {p.author?.fullName && (
                         <>
@@ -347,7 +345,7 @@ function AdminRow({
                 </div>
             </div>
 
-            {/* === RIGHT ACTIONS COLUMN === */}
+            {/* RIGHT ACTIONS COLUMN */}
             <div className="flex min-w-[220px] shrink-0 flex-col items-end justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <button
@@ -404,7 +402,6 @@ function AdminRow({
         </div>
     );
 }
-
 
 /* ---------------- FILTER SIDEBAR (ADMIN) ---------------- */
 function AdminFilterSidebar({
@@ -613,9 +610,9 @@ function AdminFilterSidebar({
                                     className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold"
                                     style={{ backgroundColor: isSelected ? stageStyle.bg : "transparent", color: stageStyle.text, borderColor: stageStyle.border }}
                                 >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stageStyle.border }} />
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stageStyle.border }} />
                                     {stage}
-                </span>
+                                </span>
                             </label>
                         );
                     })}
@@ -730,8 +727,8 @@ function AdminHeaderBar() {
     );
 }
 
-/* ---------------- PAGE ---------------- */
-export default function AdminProjectsPage() {
+/* ---------------- PAGE INNER (uses useSearchParams) ---------------- */
+function AdminProjectsPageInner() {
     const searchParams = useSearchParams();
 
     const [rows, setRows] = useState<AdminProjectRow[]>([]);
@@ -761,7 +758,7 @@ export default function AdminProjectsPage() {
             params.set("page", String(currentPage));
             params.set("perPage", "24");
 
-            // backend sort only supports recent|boost (alpha sorts are client-side)
+            // backend sort only supports recent|boost
             if (selectedSort === "recent") params.set("sort", "recent");
             else if (selectedSort === "boost") params.set("sort", "boost");
 
@@ -807,7 +804,7 @@ export default function AdminProjectsPage() {
 
     useEffect(() => { fetchRows(); }, [fetchRows]);
 
-    // keep URL in sync
+    // keep URL in sync (client-side)
     useEffect(() => {
         const params = new URLSearchParams();
         if (currentPage > 1) params.set("page", String(currentPage));
@@ -830,12 +827,33 @@ export default function AdminProjectsPage() {
 
     // handlers
     const handleSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); setCurrentPage(1); };
-    const handleStageToggle = (stage: string) => { setSelectedStages(prev => { const next = new Set(prev); next.has(stage) ? next.delete(stage) : next.add(stage); return next; }); setCurrentPage(1); };
-    const handleCategoryToggle = (cat: string) => { setSelectedCategories(prev => { const next = new Set(prev); next.has(cat) ? next.delete(cat) : next.add(cat); return next; }); setCurrentPage(1); };
+    const handleStageToggle = (stage: string) => {
+        setSelectedStages(prev => {
+            const next = new Set(prev);
+            next.has(stage) ? next.delete(stage) : next.add(stage);
+            return next;
+        });
+        setCurrentPage(1);
+    };
+    const handleCategoryToggle = (cat: string) => {
+        setSelectedCategories(prev => {
+            const next = new Set(prev);
+            next.has(cat) ? next.delete(cat) : next.add(cat);
+            return next;
+        });
+        setCurrentPage(1);
+    };
     const handleCountryChange = (iso2: string) => { setCountryIso2(iso2); setStateCode(""); setCurrentPage(1); };
     const handleStateChange = (code: string) => { setStateCode(code); setCurrentPage(1); };
     const handleLocChange = (value: string) => { setLoc(value); setCurrentPage(1); };
-    const handleStatusToggle = (s: AdminStatus) => { setStatusSet(prev => { const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next; }); setCurrentPage(1); };
+    const handleStatusToggle = (s: AdminStatus) => {
+        setStatusSet(prev => {
+            const next = new Set(prev);
+            next.has(s) ? next.delete(s) : next.add(s);
+            return next;
+        });
+        setCurrentPage(1);
+    };
     const handleBoostedModeChange = (m: BoostedMode) => { setBoostedMode(m); setCurrentPage(1); };
     const handleSuperOnlyChange = (v: boolean) => { setSuperOnly(v); setCurrentPage(1); };
     const handleAuthorIdChange = (v: string) => { setAuthorId(v); setCurrentPage(1); };
@@ -854,7 +872,7 @@ export default function AdminProjectsPage() {
     };
     const handlePageChange = (page: number) => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
-    // admin actions (now send the Bearer token)
+    // admin actions
     const adminUpdate = async (id: number, payload: Record<string, unknown>) => {
         const res = await fetch(`${BE}/admin/projects/${id}`, {
             method: "POST",
@@ -869,20 +887,29 @@ export default function AdminProjectsPage() {
     const onToggleBoost = async (id: number, next: boolean) => {
         setRows(prev => prev.map(r => (r.id === id ? { ...r, boost: next } as AdminProjectRow : r)));
         try { await adminUpdate(id, { boost: next }); }
-        catch (e) { setRows(prev => prev.map(r => (r.id === id ? { ...r, boost: !next } as AdminProjectRow : r))); console.error(e); }
+        catch (e) {
+            setRows(prev => prev.map(r => (r.id === id ? { ...r, boost: !next } as AdminProjectRow : r)));
+            console.error(e);
+        }
     };
 
     const onToggleSuperBoost = async (id: number, next: boolean) => {
         setRows(prev => prev.map(r => (r.id === id ? { ...r, superBoost: next } as AdminProjectRow : r)));
         try { await adminUpdate(id, { superBoost: next }); }
-        catch (e) { setRows(prev => prev.map(r => (r.id === id ? { ...r, superBoost: !next } as AdminProjectRow : r))); console.error(e); }
+        catch (e) {
+            setRows(prev => prev.map(r => (r.id === id ? { ...r, superBoost: !next } as AdminProjectRow : r)));
+            console.error(e);
+        }
     };
 
     const onChangeStatus = async (id: number, status: AdminStatus) => {
         const prevRow = rows.find(r => r.id === id);
         setRows(prev => prev.map(r => (r.id === id ? { ...r, status } as AdminProjectRow : r)));
         try { await adminUpdate(id, { status }); }
-        catch (e) { setRows(prev => prev.map(r => (r.id === id ? { ...r, status: (prevRow?.status || "draft") } as AdminProjectRow : r))); console.error(e); }
+        catch (e) {
+            setRows(prev => prev.map(r => (r.id === id ? { ...r, status: (prevRow?.status || "draft") } as AdminProjectRow : r)));
+            console.error(e);
+        }
     };
 
     const activeFiltersCount =
@@ -903,7 +930,6 @@ export default function AdminProjectsPage() {
                 <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
                 <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-purple-400/20 blur-3xl" />
                 <div className="relative mx-auto max-w-7xl px-6">
-                    {/* Example-like top header pulling session from token */}
                     <AdminHeaderBar />
 
                     <div className="mt-6 mb-6 flex items-center justify-between">
@@ -1033,11 +1059,17 @@ export default function AdminProjectsPage() {
                             <p className="text-sm text-gray-600">
                                 Showing{" "}
                                 <span className="font-bold text-gray-900">
-                  {pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.perPage + 1}
-                </span>{" "}
+                                    {pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.perPage + 1}
+                                </span>{" "}
                                 -{" "}
-                                <span className="font-bold text-gray-900">{Math.min(pagination.page * pagination.perPage, pagination.total)}</span>{" "}
-                                of <span className="font-bold text-gray-900">{pagination.total}</span> projects
+                                <span className="font-bold text-gray-900">
+                                    {Math.min(pagination.page * pagination.perPage, pagination.total)}
+                                </span>{" "}
+                                of{" "}
+                                <span className="font-bold text-gray-900">
+                                    {pagination.total}
+                                </span>{" "}
+                                projects
                             </p>
                         </div>
 
@@ -1126,5 +1158,20 @@ export default function AdminProjectsPage() {
                 </div>
             </section>
         </main>
+    );
+}
+
+/* ---------------- DEFAULT EXPORT: wrap inner in Suspense ---------------- */
+export default function AdminProjectsPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+                    Loading admin projects…
+                </div>
+            }
+        >
+            <AdminProjectsPageInner />
+        </Suspense>
     );
 }

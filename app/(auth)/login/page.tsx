@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // match brand palette
@@ -9,7 +9,7 @@ const brand = {
     darkBlue: "#003D7A",
 };
 
-export default function LoginPage() {
+function LoginPageInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -50,11 +50,7 @@ export default function LoginPage() {
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email,
-                        password,
-                    }),
-                    // no credentials: "include" yet since you're doing manual token
+                    body: JSON.stringify({ email, password }),
                 }
             );
 
@@ -69,6 +65,9 @@ export default function LoginPage() {
                 } else {
                     router.push(redirectTo);
                 }
+
+                // IMPORTANT: stop here so we don't fall through
+                return;
             }
 
             // auth failure (400, 401, etc)
@@ -457,5 +456,20 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+// Default export: wrap useSearchParams usage in Suspense
+export default function LoginPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="p-8 text-center text-sm text-gray-500">
+                    Loading login…
+                </div>
+            }
+        >
+            <LoginPageInner />
+        </Suspense>
     );
 }

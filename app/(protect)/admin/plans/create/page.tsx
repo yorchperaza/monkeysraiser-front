@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const brand = {
@@ -15,7 +15,8 @@ const brand = {
 
 const BE = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/+$/, "");
 
-export default function AdminPlanCreate() {
+/* ========== Inner component that uses useSearchParams ========== */
+function AdminPlanCreateInner() {
     const router = useRouter();
     const qs = useSearchParams();
 
@@ -28,7 +29,7 @@ export default function AdminPlanCreate() {
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
 
-    // One-time pricing (optional) – server will create Stripe Product/Price and return IDs
+    // One-time pricing (optional)
     const [amount, setAmount] = useState<string>("");     // smallest unit (e.g., 9900 = $99.00)
     const [currency, setCurrency] = useState<string>(""); // e.g., usd, eur, crc
     const [productName, setProductName] = useState<string>("");
@@ -98,14 +99,12 @@ export default function AdminPlanCreate() {
         const payload: any = {
             name: name.trim() || null,
             slug: slug.trim() || null,
-            // No manual IDs here. Stripe IDs are generated server-side if pricing is provided.
         };
 
         if (willCreateStripeFromPricing) {
             payload.amount = amount.trim() !== "" ? parseInt(amount.trim(), 10) : null;
             payload.currency = currency.trim().toLowerCase() || null;
             payload.product_name = (productName || name).trim();
-            // one-time purchase → no interval fields
         }
 
         // client-side checks
@@ -302,15 +301,15 @@ export default function AdminPlanCreate() {
                                         <p className="text-gray-400">
                                             Preview:{" "}
                                             <span className="font-semibold text-gray-600">
-                        /pricing/{slug || "your-slug"}
-                      </span>
+                                                /pricing/{slug || "your-slug"}
+                                            </span>
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         </section>
 
-                        {/* One-time Pricing → server will create Stripe IDs if provided */}
+                        {/* One-time Pricing */}
                         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-sm font-extrabold text-gray-800">One-time Price (optional)</h2>
@@ -321,8 +320,8 @@ export default function AdminPlanCreate() {
                                             : "bg-gray-100 text-gray-600"
                                     }`}
                                 >
-                  {willCreateStripeFromPricing ? "Stripe IDs will be created" : "No Stripe linkage"}
-                </span>
+                                    {willCreateStripeFromPricing ? "Stripe IDs will be created" : "No Stripe linkage"}
+                                </span>
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -420,8 +419,8 @@ export default function AdminPlanCreate() {
                                         <span className="font-semibold text-gray-800">“{name}”</span>
                                         {willCreateStripeFromPricing && pricingInputsCoherent ? (
                                             <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                        + Stripe IDs
-                      </span>
+                                                + Stripe IDs
+                                            </span>
                                         ) : null}
                                     </>
                                 ) : (
@@ -479,5 +478,20 @@ export default function AdminPlanCreate() {
                 </div>
             </form>
         </div>
+    );
+}
+
+/* ========== Default export: wrap in Suspense ========== */
+export default function AdminPlanCreate() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+                    Loading plan creator…
+                </div>
+            }
+        >
+            <AdminPlanCreateInner />
+        </Suspense>
     );
 }
