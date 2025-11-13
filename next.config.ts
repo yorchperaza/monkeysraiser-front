@@ -1,7 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+    images: {
+        dangerouslyAllowSVG: true,
+        contentSecurityPolicy:
+            "default-src 'self'; script-src 'none'; sandbox;", // required when allowing SVG
+        remotePatterns: [
+            { protocol: "http",  hostname: "127.0.0.1", port: "8000", pathname: "/**" },
+            { protocol: "http",  hostname: "localhost", port: "8000", pathname: "/**" },
+            { protocol: "https", hostname: "monkeysraiser.com",             pathname: "/**" },
+            { protocol: "https", hostname: "api.dicebear.com",            pathname: "/**" }, // <- add pathname
+        ],
+    },
 };
 
 export default nextConfig;
