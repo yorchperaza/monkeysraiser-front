@@ -276,7 +276,6 @@ export default function EditProjectPage() {
                     if (hit) setCountryIso(hit.value);
                 }
                 if (parsedState) setStateName(parsedState);
-                console.log(data);
                 setFormData({
                     name: data.name || "",
                     tagline: data.tagline || "",

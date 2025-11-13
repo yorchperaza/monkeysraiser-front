@@ -878,11 +878,11 @@ export default function HomePage() {
                                     Browse All Projects
                                 </Link>
                                 <Link
-                                    href="/how-it-works"
+                                    href="/investors"
                                     className="rounded-xl border-2 bg-white px-8 py-4 text-base font-bold transition-all duration-300 hover:bg-gray-50"
                                     style={{ borderColor: brand.primary, color: brand.primary }}
                                 >
-                                    How It Works
+                                    For Investors
                                 </Link>
                             </div>
 

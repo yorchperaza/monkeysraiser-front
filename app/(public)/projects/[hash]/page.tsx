@@ -1007,7 +1007,6 @@ export default function ProjectDetailPage() {
                 );
                 if (!res.ok) throw new Error("Project not found");
                 const data = await res.json();
-                console.log(data);
                 if (mounted) setProject(data);
             } catch (e) {
                 console.error("Error loading project:", e);

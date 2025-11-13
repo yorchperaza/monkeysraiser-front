@@ -342,7 +342,7 @@ export default function Header() {
                                         Sign in
                                     </Link>
                                     <Link
-                                        href="/submit"
+                                        href="/register"
                                         className="rounded-lg px-3 py-2 text-sm font-bold text-white"
                                         style={{ background: `linear-gradient(135deg, ${brand.primary}, ${brand.darkBlue})` }}
                                     >

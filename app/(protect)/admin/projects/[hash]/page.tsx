@@ -193,7 +193,6 @@ export default function AdminProjectEditPage() {
                     throw new Error(`Failed to load project (${res.status}): ${text || res.statusText}`);
                 }
                 const data = (await res.json()) as Partial<AdminProjectDetail>;
-                console.log(data);
                 if (!alive) return;
 
                 const raw: any = data || {};
