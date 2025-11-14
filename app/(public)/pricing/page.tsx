@@ -75,15 +75,15 @@ const PLANS: Plan[] = [
         price: "$8,000",
         period: "One-time • 2 months",
         features: [
-            "7-day Premier Showcase on homepage top",
+            "30-day Premier Showcase on homepage top",
             "Custom feature story with media partner (200K+ readers)",
             "2 rounds: deck & business plan expert review",
             "2 live mock pitches with seasoned investors",
-            "4–5 curated 1:1 investor introductions",
+            "3–4 curated 1:1 investor introductions",
             "Investor-ready asset pack (one-pager + updated deck)",
             "Personal campaign manager throughout",
         ],
-        ctaHref: "/register?type=investor",
+        ctaHref: "/register",
         ctaLabel: "Apply for Accelerator",
     },
 ];
