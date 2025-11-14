@@ -302,7 +302,7 @@ export default function PricingPage() {
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 md:justify-end">
                                     <Link
-                                        href="/register/founder"
+                                        href="/register"
                                         className="rounded-xl px-6 py-3 text-sm font-bold text-white shadow-xl transition-all hover:-translate-y-0.5 hover:shadow-2xl"
                                         style={{ background: `linear-gradient(135deg, ${brand.primary}, ${brand.darkBlue})` }}
                                     >
