@@ -378,10 +378,7 @@ export default function Header() {
                                     <Link href={profileHref} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                         Profile
                                     </Link>
-                                    <Link href="/me/settings" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                                        Settings
-                                    </Link>
-                                    <Link href="/billing" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    <Link href="/dashboard/plans" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                         Billing
                                     </Link>
                                     <button

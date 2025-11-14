@@ -146,11 +146,11 @@ function BillingReturnInner() {
                                 <p>
                                     You can now review your subscription, invoices, and payment methods in the{" "}
                                     <Link
-                                        href="/billing"
+                                        href="/dashboard/plans"
                                         className="font-semibold"
                                         style={{ color: brand.primary }}
                                     >
-                                        Billing
+                                        Plans
                                     </Link>{" "}
                                     page.
                                 </p>
