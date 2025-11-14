@@ -51,7 +51,7 @@ const PLANS: Plan[] = [
             "Edit & update anytime",
             "No time limits, no hidden fees",
         ],
-        ctaHref: "/register/founder",
+        ctaHref: "/register",
         ctaLabel: "Submit Your Project",
     },
     {
@@ -66,7 +66,7 @@ const PLANS: Plan[] = [
             "2×–3× more visibility vs. standard listings",
             "Custom analytics report at campaign end",
         ],
-        ctaHref: "/spotlight-boost",
+        ctaHref: "/register",
         ctaLabel: "Upgrade to Spotlight",
         ribbon: "Most Popular",
     },
@@ -83,7 +83,7 @@ const PLANS: Plan[] = [
             "Investor-ready asset pack (one-pager + updated deck)",
             "Personal campaign manager throughout",
         ],
-        ctaHref: "/investor-accelerator",
+        ctaHref: "/register?type=investor",
         ctaLabel: "Apply for Accelerator",
     },
 ];
