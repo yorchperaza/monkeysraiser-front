@@ -172,6 +172,9 @@ export default function Header() {
                         <Link href="/investors" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
                             For Investors
                         </Link>
+                        <Link href="/investor-accelerator" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
+                            Accelerator
+                        </Link>
                         <Link href="/pricing" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
                             Pricing
                         </Link>
@@ -181,12 +184,6 @@ export default function Header() {
                             <>
                                 <Link href="/dashboard" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
                                     Dashboard
-                                </Link>
-                                <Link
-                                    href="/dashboard/projects"
-                                    className="text-sm font-medium text-gray-600 transition hover:text-blue-600"
-                                >
-                                    My Projects
                                 </Link>
                                 <Link
                                     href="/dashboard/messages"
@@ -331,6 +328,9 @@ export default function Header() {
                             </Link>
                             <Link href="/investors" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                 For Investors
+                            </Link>
+                            <Link href="/investor-accelerator" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Accelerator
                             </Link>
                             <Link href="/pricing" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                 Pricing
