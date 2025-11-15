@@ -170,7 +170,7 @@ export default function SupportBubble({
         const needsEmail = hasToken === false;
 
         if (!subject.trim() || !description.trim()) {
-            setError("Please provide subject and description.");
+            setError("Please provide a subject and a message.");
             return;
         }
 
@@ -236,7 +236,7 @@ export default function SupportBubble({
             setError(
                 err instanceof Error
                     ? err.message
-                    : "Failed to send support request."
+                    : "Failed to send your message."
             );
         } finally {
             setSending(false);
@@ -248,8 +248,8 @@ export default function SupportBubble({
             {/* Floating button */}
             <button
                 type="button"
-                aria-label="Open support"
-                title="Contact support"
+                aria-label="Open help & contact"
+                title="Questions, feedback, or support"
                 onClick={() => setOpen(true)}
                 className="group fixed bottom-5 right-5 z-[60] inline-flex h-14 w-14 items-center justify-center
              rounded-full bg-gradient-to-br from-blue-600 via-sky-600 to-cyan-500 text-white
@@ -258,7 +258,7 @@ export default function SupportBubble({
             >
                 <span className="absolute hidden h-14 w-14 rounded-full bg-blue-500/20 group-hover:inline-flex motion-safe:animate-ping" />
                 <ChatIcon className="relative h-6 w-6" />
-                <span className="sr-only">Open support form</span>
+                <span className="sr-only">Open contact form</span>
             </button>
 
             <Transition show={open} appear>
@@ -295,11 +295,11 @@ export default function SupportBubble({
                                     <div className="flex items-start justify-between px-6 py-5">
                                         <div>
                                             <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                                Contact Support
+                                                Get in touch
                                             </Dialog.Title>
                                             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                                Tell us what is going on and we will email
-                                                you back.
+                                                Send us a question, issue, or general
+                                                message and we&apos;ll follow up by email.
                                             </p>
                                         </div>
                                         <button
@@ -322,8 +322,8 @@ export default function SupportBubble({
                                         {ok && (
                                             <div className="flex items-start gap-2 rounded-xl border border-green-200/70 bg-green-50/60 px-3 py-2 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200 dark:border-green-800/50">
                                                 <CheckCircleSvg className="h-5 w-5 mt-0.5" />
-                                                Your message was sent. We will get
-                                                back to you soon.
+                                                Thanks! Your message was sent. We&apos;ll
+                                                get back to you soon.
                                             </div>
                                         )}
                                         {error && (
@@ -350,7 +350,7 @@ export default function SupportBubble({
                                                 />
                                                 <p className="mt-1 text-xs text-gray-500">
                                                     We&apos;ll use this address to
-                                                    reply to your support request.
+                                                    reply to you about this request.
                                                 </p>
                                             </div>
                                         )}
@@ -366,7 +366,7 @@ export default function SupportBubble({
                                                         setSubject(e.target.value)
                                                     }
                                                     className="w-full rounded-xl border border-gray-300 dark:border-neutral-700 bg-white/70 dark:bg-neutral-900/60 px-4 py-2.5 pr-14 shadow-inner focus:border-blue-500 focus:ring-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400"
-                                                    placeholder="Brief summary"
+                                                    placeholder="How can we help?"
                                                     maxLength={subjectMax}
                                                     required
                                                 />
@@ -378,7 +378,7 @@ export default function SupportBubble({
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                                                Description *
+                                                Message *
                                             </label>
                                             <textarea
                                                 value={description}
@@ -386,19 +386,19 @@ export default function SupportBubble({
                                                     setDescription(e.target.value)
                                                 }
                                                 className="w-full min-h-[160px] rounded-xl border border-gray-300 dark:border-neutral-700 bg-white/70 dark:bg-neutral-900/60 px-4 py-3 shadow-inner focus:border-blue-500 focus:ring-blue-500 text-gray-900 dark:text-gray-100 placeholder-gray-400"
-                                                placeholder="Include steps, expected vs actual, and any error messages."
+                                                placeholder="Describe your question, issue, or request. Include any details that might help us understand."
                                                 required
                                             />
                                             <p className="mt-1 text-xs text-gray-500">
                                                 Tip: you can paste a screenshot here
-                                                and it will be attached.
+                                                and it will be attached automatically.
                                             </p>
                                         </div>
 
                                         <div>
                                             <div className="flex items-center justify-between mb-1">
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                                                    Attachments
+                                                    Attachments (optional)
                                                 </label>
                                                 <span
                                                     className={`text-xs ${
@@ -446,7 +446,8 @@ export default function SupportBubble({
                                                     Add files
                                                 </label>
                                                 <p className="mt-2 text-xs text-gray-500">
-                                                    or drop files here
+                                                    or drop files here (screenshots,
+                                                    logs, etc.)
                                                 </p>
 
                                                 {files.length > 0 && (
@@ -523,7 +524,7 @@ export default function SupportBubble({
                                                         Sending…
                                                     </>
                                                 ) : (
-                                                    <>Send</>
+                                                    <>Send message</>
                                                 )}
                                             </button>
                                         </div>
