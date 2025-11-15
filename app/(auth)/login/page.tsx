@@ -13,8 +13,6 @@ function LoginPageInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // where should we go after login?
-    // e.g. /login?from=/dashboard
     const redirectTo =
         searchParams.get("from") && searchParams.get("from") !== "/login"
             ? searchParams.get("from")!
@@ -66,11 +64,9 @@ function LoginPageInner() {
                     router.push(redirectTo);
                 }
 
-                // IMPORTANT: stop here so we don't fall through
                 return;
             }
 
-            // auth failure (400, 401, etc)
             const msg =
                 (typeof data.message === "string" && data.message) ||
                 "Invalid email or password.";
@@ -318,16 +314,16 @@ function LoginPageInner() {
                                         {showPass ? "Hide" : "Show"}
                                     </button>
                                 </div>
-                            </div>
 
-                            {/* Forgot password */}
-                            <div className="flex justify-end">
-                                <a
-                                    href="/forgot-password"
-                                    className="text-xs font-medium text-blue-600 hover:text-blue-700"
-                                >
-                                    Forgot password?
-                                </a>
+                                {/* Forgot password link */}
+                                <div className="mt-2 flex justify-end">
+                                    <a
+                                        href="/forgot-password"
+                                        className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                                    >
+                                        Forgot password?
+                                    </a>
+                                </div>
                             </div>
 
                             {/* Submit Button */}
@@ -436,7 +432,6 @@ function LoginPageInner() {
                         </div>
                     </div>
 
-                    {/* Subtext under card (optional) */}
                     <p className="mt-8 text-center text-xs leading-relaxed text-gray-500">
                         By signing in you agree to our{" "}
                         <a
