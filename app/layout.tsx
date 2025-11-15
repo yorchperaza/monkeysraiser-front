@@ -3,6 +3,7 @@ import "./globals.css";
 import React from "react";
 import CookiesBanner from "@/components/misc/CookiesBanner"
 import AnalyticsGate from "@/components/misc/AnalyticsGate"
+import SupportBubble from "@/components/support/SupportBubble";
 
 export const metadata = {
     title: "MonkeysRaiser",
@@ -25,6 +26,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <CookiesBanner />
         <AnalyticsGate gaMeasurementId={process.env.NEXT_PUBLIC_GA_ID} />
+        <SupportBubble tokenStorageKey="auth_token" />
         </body>
         </html>
     );
