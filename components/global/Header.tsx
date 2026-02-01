@@ -165,13 +165,18 @@ export default function Header() {
                     </Link>
 
                     {/* Desktop nav */}
-                    <div className="hidden items-center gap-6 md:flex">
+                    <div className="hidden items-center gap-4 lg:flex">
                         <Link href="/projects" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
                             Browse Projects
                         </Link>
-                        <Link href="/investors" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
-                            For Investors
+                        <Link href="/search-investors" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
+                            Investors
                         </Link>
+                        {!user && (
+                            <Link href="/investors" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
+                                For Investors
+                            </Link>
+                        )}
                         <Link href="/investor-accelerator" className="text-sm font-medium text-gray-600 transition hover:text-blue-600">
                             Accelerator
                         </Link>
@@ -202,7 +207,7 @@ export default function Header() {
                 </div>
 
                 {/* Right: auth actions */}
-                <div className="hidden items-center gap-3 md:flex">
+                <div className="hidden items-center gap-3 lg:flex">
                     {!user ? (
                         <>
                             <Link
@@ -304,7 +309,7 @@ export default function Header() {
 
                 {/* Mobile hamburger */}
                 <button
-                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 md:hidden"
+                    className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 lg:hidden"
                     onClick={() => setOpen((v) => !v)}
                     aria-label="Toggle menu"
                 >
@@ -320,11 +325,14 @@ export default function Header() {
 
             {/* Mobile menu */}
             {open && (
-                <div className="border-t border-gray-100 bg-white md:hidden">
+                <div className="border-t border-gray-100 bg-white lg:hidden">
                     <div className="mx-auto max-w-7xl px-6 py-4">
                         <div className="grid gap-2">
                             <Link href="/projects" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                 Browse Projects
+                            </Link>
+                            <Link href="/search-investors" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Search Investors
                             </Link>
                             <Link href="/investors" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                 For Investors
