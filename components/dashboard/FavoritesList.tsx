@@ -6,7 +6,7 @@ import Link from "next/link";
 // ---------- Types ----------
 type MediaLite = { id: number | null; url: string | null; type: string | null; hash: string | null } | null;
 
-type FavoriteProject = {
+export type FavoriteProject = {
     hash: string | null;
     title: string | null;
     tagline?: string | null;
@@ -160,23 +160,39 @@ function ListRowSkeleton() {
 export default function FavoritesList({
                                           initialPerPage = 12,
                                           className,
+                                          favorites,
                                       }: {
     initialPerPage?: number;
     className?: string;
+    favorites?: FavoriteProject[];
 }) {
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(clamp(initialPerPage, 6, 48));
+    
+    // Track if we're using prop data (dashboard mode) vs self-fetching
+    const usingPropData = Boolean(favorites);
 
-    const [data, setData] = useState<FavoritesResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<FavoritesResponse | null>(favorites ? {
+        page: 1,
+        perPage: initialPerPage,
+        total: favorites.length,
+        pages: 1,
+        items: favorites
+    } : null);
+    const [loading, setLoading] = useState(!favorites);
     const [err, setErr] = useState<string | null>(null);
 
     const [q, setQ] = useState("");
     const [isPending, startTransition] = useTransition();
     const abortRef = useRef<AbortController | null>(null);
 
-    // Fetcher
+    // Fetcher - only when NOT using prop data
     useEffect(() => {
+        if (usingPropData) {
+            setLoading(false);
+            return;
+        }
+        
         setLoading(true);
         setErr(null);
         abortRef.current?.abort();
@@ -191,11 +207,11 @@ export default function FavoritesList({
             .finally(() => setLoading(false));
 
         return () => ctrl.abort();
-    }, [page, perPage]);
+    }, [page, perPage, usingPropData]);
 
     // Client-side search filter
     const filtered = useMemo(() => {
-        const items = data?.items ?? [];
+        const items = usingPropData ? (favorites ?? []) : (data?.items ?? []);
         const needle = q.trim().toLowerCase();
         if (!needle) return items;
         return items.filter((it) => {
@@ -210,9 +226,14 @@ export default function FavoritesList({
                 .toLowerCase();
             return hay.includes(needle);
         });
-    }, [data, q]);
+    }, [data, favorites, usingPropData, q]);
+    
+    // Limit to 6 items in dashboard mode
+    const displayItems = useMemo(() => {
+        return usingPropData ? filtered.slice(0, 6) : filtered;
+    }, [filtered, usingPropData]);
 
-    const total = data?.total ?? 0;
+    const total = usingPropData ? filtered.length : (data?.total ?? 0);
     const pages = data?.pages ?? 1;
 
     // Optimistic Unfavorite
@@ -234,17 +255,15 @@ export default function FavoritesList({
     // ---------- UI ----------
     return (
         <section className={classNames("rounded-2xl bg-white p-5 shadow-lg", className)}>
-            {/* Header — compact for sidebar/column */}
-            <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-lg font-black text-gray-900">Favorites</h2>
-                        <p className="text-xs text-gray-600">Your saved projects</p>
-                    </div>
-                </div>
+            {/* Header */}
+            <div className="mb-4">
+                <h2 className="text-lg font-black text-gray-900">Favorites</h2>
+                <p className="text-xs text-gray-600">Your saved projects</p>
+            </div>
 
-                {/* Controls row — stacked on narrow */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {/* Controls - only show in standalone mode */}
+            {!usingPropData && (
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative w-full sm:max-w-xs">
                         <input
                             value={q}
@@ -255,32 +274,30 @@ export default function FavoritesList({
                         <span className="pointer-events-none absolute right-3 top-2.5 text-[10px] font-semibold text-gray-400">⌘K</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <select
-                            value={perPage}
-                            onChange={(e) => {
-                                const v = clamp(parseInt(e.target.value, 10) || 12, 6, 48);
-                                startTransition(() => {
-                                    setPerPage(v);
-                                    setPage(1);
-                                });
-                            }}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                            aria-label="Per page"
-                        >
-                            {[6, 12, 24, 36, 48].map((n) => (
-                                <option key={n} value={n}>
-                                    {n} / page
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <select
+                        value={perPage}
+                        onChange={(e) => {
+                            const v = clamp(parseInt(e.target.value, 10) || 12, 6, 48);
+                            startTransition(() => {
+                                setPerPage(v);
+                                setPage(1);
+                            });
+                        }}
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        aria-label="Per page"
+                    >
+                        {[6, 12, 24, 36, 48].map((n) => (
+                            <option key={n} value={n}>
+                                {n} / page
+                            </option>
+                        ))}
+                    </select>
                 </div>
-            </div>
+            )}
 
             {/* Error banner */}
             {err && (
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                     {err}{" "}
                     <button onClick={() => setPage((p) => p)} className="underline">
                         Retry
@@ -288,23 +305,24 @@ export default function FavoritesList({
                 </div>
             )}
 
-            <div className="mt-5 space-y-4">
+            {/* Content */}
+            <div className="space-y-3">
                 {/* Loading */}
                 {loading && !data && (
                     <>
-                        {Array.from({ length: 5 }).map((_, i) => (
+                        {Array.from({ length: 3 }).map((_, i) => (
                             <ListRowSkeleton key={i} />
                         ))}
                     </>
                 )}
 
                 {/* Empty */}
-                {!loading && filtered.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
+                {!loading && displayItems.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center">
                         <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100">⭐</div>
-                        <h3 className="text-base font-bold text-gray-900">No favorites yet</h3>
-                        <p className="mt-1 text-sm text-gray-600">Browse projects and save your picks to see them here.</p>
-                        <div className="mt-4">
+                        <h3 className="text-sm font-bold text-gray-900">No favorites yet</h3>
+                        <p className="mt-1 text-xs text-gray-600">Browse projects and save your picks.</p>
+                        <div className="mt-3">
                             <Link
                                 href="/projects"
                                 className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white shadow transition hover:shadow-md"
@@ -316,101 +334,95 @@ export default function FavoritesList({
                     </div>
                 )}
 
-                {/* LIST (single column) */}
-                {!loading && filtered.length > 0 && (
-                    <div className="space-y-4">
-                        {filtered.map((p, idx) => {
+                {/* LIST - Mobile-friendly card layout */}
+                {!loading && displayItems.length > 0 && (
+                    <div className="space-y-3">
+                        {displayItems.map((p, idx) => {
                             const img = mediaUrl(p.image?.url || "");
                             const letter = (p.title?.[0] || "P").toUpperCase();
                             const target = currency0(p.foundingTarget ?? p.capitalSought);
                             return (
                                 <div
                                     key={projectKey(p, idx)}
-                                    className="group flex items-stretch gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md"
+                                    className="group rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:shadow-md"
                                 >
-                                    {/* Thumb */}
-                                    <div className="relative h-24 w-40 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                                        {img ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={img}
-                                                alt={p.title ?? "Project"}
-                                                className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                                            />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-3xl font-black text-gray-300">
-                                                {letter}
-                                            </div>
-                                        )}
-                                        {(p.superBoost || p.boost) && (
-                                            <div className="absolute left-2 top-2 flex gap-2">
-                                                {p.superBoost && (
-                                                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                            🚀 Super
-                          </span>
-                                                )}
-                                                {!p.superBoost && p.boost && (
-                                                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold text-yellow-700">
-                            ⚡ Boost
-                          </span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Middle content */}
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <Link
-                                                    href={p.hash ? `/projects/${p.hash}` : "#"}
-                                                    className="line-clamp-1 text-sm font-bold text-gray-900 hover:underline"
-                                                >
-                                                    {p.title ?? "Untitled project"}
-                                                </Link>
-                                                {p.tagline && <div className="mt-0.5 line-clamp-2 text-xs text-gray-600">{p.tagline}</div>}
-                                            </div>
-                                            {p.stage && (
-                                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                          {p.stage}
-                        </span>
+                                    {/* Top row: Image + Title + Stage */}
+                                    <div className="flex gap-3">
+                                        {/* Thumbnail */}
+                                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                                            {img ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={img}
+                                                    alt={p.title ?? "Project"}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center text-xl font-black text-gray-300">
+                                                    {letter}
+                                                </div>
+                                            )}
+                                            {(p.superBoost || p.boost) && (
+                                                <span className={classNames(
+                                                    "absolute left-1 top-1 rounded px-1 py-0.5 text-[8px] font-bold",
+                                                    p.superBoost ? "bg-purple-100 text-purple-700" : "bg-yellow-100 text-yellow-700"
+                                                )}>
+                                                    {p.superBoost ? "🚀" : "⚡"}
+                                                </span>
                                             )}
                                         </div>
-
-                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5">
-                        📍 {shortLocation(p.location)}
-                      </span>
-                                            {Array.isArray(p.categories) &&
-                                                p.categories.slice(0, 2).map((c) => (
-                                                    <span key={c} className="rounded-full bg-gray-50 px-2 py-0.5">
-                            {c}
-                          </span>
-                                                ))}
-                                            {Array.isArray(p.categories) && p.categories.length > 2 && (
-                                                <span className="rounded-full bg-gray-50 px-2 py-0.5">+{p.categories.length - 2}</span>
-                                            )}
-                                        </div>
-
-                                        <div className="mt-2 text-xs text-gray-600">
-                                            <span className="font-bold text-gray-900">{target}</span> target
+                                        
+                                        {/* Title + Stage */}
+                                        <div className="min-w-0 flex-1">
+                                            <Link
+                                                href={p.hash ? `/projects/${p.hash}` : "#"}
+                                                className="line-clamp-2 text-sm font-bold text-gray-900 hover:underline"
+                                            >
+                                                {p.title ?? "Untitled project"}
+                                            </Link>
+                                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                {p.stage && (
+                                                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                                        {p.stage}
+                                                    </span>
+                                                )}
+                                                <span className="text-[10px] text-gray-500">
+                                                    📍 {shortLocation(p.location)}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-
-                                    {/* Right actions */}
-                                    <div className="flex w-36 shrink-0 flex-col items-end justify-between">
+                                    
+                                    {/* Middle: Categories + Target */}
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                                        {Array.isArray(p.categories) &&
+                                            p.categories.slice(0, 2).map((c) => (
+                                                <span key={c} className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
+                                                    {c}
+                                                </span>
+                                            ))}
+                                        {Array.isArray(p.categories) && p.categories.length > 2 && (
+                                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
+                                                +{p.categories.length - 2}
+                                            </span>
+                                        )}
+                                        <span className="ml-auto text-xs font-bold text-gray-900">{target}</span>
+                                    </div>
+                                    
+                                    {/* Bottom: Actions */}
+                                    <div className="mt-3 flex items-center gap-2">
                                         <Link
                                             href={p.hash ? `/projects/${p.hash}` : "#"}
-                                            className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                            className="flex-1 rounded-lg py-2 text-center text-xs font-bold text-white"
                                             style={{ background: `linear-gradient(135deg, ${brand.primary}, ${brand.darkBlue})` }}
                                         >
                                             View
                                         </Link>
                                         <button
                                             onClick={() => handleUnfavorite(p.hash ?? "")}
-                                            className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                                            className="flex-1 rounded-lg border border-gray-200 py-2 text-center text-xs font-bold text-gray-700 hover:bg-gray-50"
                                         >
-                                            Unfavorite
+                                            Remove
                                         </button>
                                     </div>
                                 </div>
@@ -419,36 +431,53 @@ export default function FavoritesList({
                     </div>
                 )}
 
-                {/* Footer / Pagination */}
-                {!loading && (data?.items?.length ?? 0) > 0 && (
-                    <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-                        <div className="text-xs text-gray-600">
-                            Page <span className="font-semibold text-gray-900">{page}</span> of{" "}
-                            <span className="font-semibold text-gray-900">{pages}</span> •{" "}
-                            <span className="font-semibold text-gray-900">{total}</span> total
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                disabled={!canPrev || isPending}
-                                onClick={() => canPrev && startTransition(() => setPage((p) => Math.max(1, p - 1)))}
-                                className={classNames(
-                                    "rounded-lg border px-3 py-1.5 text-xs",
-                                    canPrev ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
-                                )}
-                            >
-                                ← Prev
-                            </button>
-                            <button
-                                disabled={!canNext || isPending}
-                                onClick={() => canNext && startTransition(() => setPage((p) => p + 1))}
-                                className={classNames(
-                                    "rounded-lg border px-3 py-1.5 text-xs",
-                                    canNext ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
-                                )}
-                            >
-                                Next →
-                            </button>
-                        </div>
+                {/* Footer - View all link in dashboard mode, pagination otherwise */}
+                {!loading && displayItems.length > 0 && (
+                    <div className="mt-4">
+                        {usingPropData ? (
+                            /* Dashboard mode: show "View all" if more than 6 */
+                            total > 6 && (
+                                <div className="text-center">
+                                    <Link
+                                        href="/dashboard/favorites"
+                                        className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:underline"
+                                    >
+                                        View all {total} favorites →
+                                    </Link>
+                                </div>
+                            )
+                        ) : (
+                            /* Standalone mode: pagination */
+                            <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+                                <div className="text-xs text-gray-600">
+                                    Page <span className="font-semibold text-gray-900">{page}</span> of{" "}
+                                    <span className="font-semibold text-gray-900">{pages}</span> •{" "}
+                                    <span className="font-semibold text-gray-900">{total}</span> total
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        disabled={!canPrev || isPending}
+                                        onClick={() => canPrev && startTransition(() => setPage((p) => Math.max(1, p - 1)))}
+                                        className={classNames(
+                                            "rounded-lg border px-3 py-1.5 text-xs",
+                                            canPrev ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
+                                        )}
+                                    >
+                                        ← Prev
+                                    </button>
+                                    <button
+                                        disabled={!canNext || isPending}
+                                        onClick={() => canNext && startTransition(() => setPage((p) => p + 1))}
+                                        className={classNames(
+                                            "rounded-lg border px-3 py-1.5 text-xs",
+                                            canNext ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
+                                        )}
+                                    >
+                                        Next →
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

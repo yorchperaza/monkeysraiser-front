@@ -23,7 +23,7 @@ type MessageLite = {
     readDate?: string | null; // ISO
 };
 
-type ConversationLite = {
+export type ConversationLite = {
     id: number;
     hash: string;
     subject: string | null;
@@ -207,17 +207,28 @@ export default function DashboardConversations({
                                                    perPage = 8,
                                                    pollMs = 8000,
                                                    showHeader = true,
+                                                   conversations: initialConversations,
                                                }: {
     className?: string;
     perPage?: number;
     pollMs?: number;
     showHeader?: boolean;
+    conversations?: ConversationLite[];
 }) {
     const [q, setQ] = useState("");
-    const [loadingList, setLoadingList] = useState(true);
+    const [loadingList, setLoadingList] = useState(!initialConversations);
     const [err, setErr] = useState<string | null>(null);
-    const [data, setData] = useState<Paged<ConversationLite> | null>(null);
-    const [selected, setSelected] = useState<ConversationLite | null>(null);
+    const [data, setData] = useState<Paged<ConversationLite> | null>(initialConversations ? {
+        page: 1,
+        perPage: perPage,
+        total: initialConversations.length, // approximation
+        pages: 1,
+        items: initialConversations
+    } : null);
+    
+    // Initialize selected if we have items and none selected yet (handled in effect or initial state?)
+    // Actually, `selected` is state. Let's initialize it if provided.
+    const [selected, setSelected] = useState<ConversationLite | null>(initialConversations && initialConversations.length > 0 ? initialConversations[0] : null);
 
     // Thread state
     const [msgs, setMsgs] = useState<MessageLite[]>([]);
@@ -227,13 +238,19 @@ export default function DashboardConversations({
 
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const hasMarkedRef = useRef<string | null>(null);
+    const initializedRef = useRef(!!initialConversations);
 
     const [subject, setSubject] = useState("");
     const [message, setMessage] = useState("");
     const [files, setFiles] = useState<File[]>([]);
 
     // ---- List loader
-    const loadList = useCallback(async () => {
+    const loadList = useCallback(async (force = false) => {
+        // specific check to skip first load if we have props
+        if (!force && initializedRef.current) {
+             return;
+        }
+
         setLoadingList(true);
         setErr(null);
         try {
@@ -260,6 +277,34 @@ export default function DashboardConversations({
             setLoadingList(false);
         }
     }, [perPage, q, selected]);
+
+    useEffect(() => {
+        // If we initialized with props, disable the flag so subsequent calls (like search) work
+        // But for the FIRST mount, we want to skip loadList() call in this effect if we have data.
+        // Actually, we can just call loadList() and let it check the ref.
+        loadList();  
+        // After first run, we want future calls to work (e.g. manual refresh or search), 
+        // implies we should unset initializedRef after a timeout or in a separate effect?
+        // Better: let's just make the effect logic explicit.
+        
+        // Wait, if q changes, we DO want to load list irrespective of initial props.
+        // So initializedRef should be reset when q changes? 
+        // Complex interactions. 
+        
+        // Simpler: 
+        if (initializedRef.current) {
+             // We used initial data.
+             // We must eventually allow refetching. 
+             // Let's set it to false AFTER this effect runs?
+             const t = setTimeout(() => { initializedRef.current = false; }, 100);
+             return () => clearTimeout(t);
+        }
+    }, [loadList]);
+
+    // Reset initialization flag if q changes so we do fetch
+    useEffect(() => {
+        if (q) initializedRef.current = false;
+    }, [q]);
 
     useEffect(() => {
         loadList();
@@ -442,7 +487,7 @@ export default function DashboardConversations({
                     className={inputBase}
                 />
                 <button
-                    onClick={loadList}
+                    onClick={() => loadList()}
                     className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-sm font-black text-white hover:bg-blue-700"
                 >
                     Search
@@ -451,7 +496,7 @@ export default function DashboardConversations({
 
             {err && (
                 <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {err} <button onClick={loadList} className="underline">Retry</button>
+                    {err} <button onClick={() => loadList()} className="underline">Retry</button>
                 </div>
             )}
 

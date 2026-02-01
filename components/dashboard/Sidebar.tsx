@@ -39,6 +39,7 @@ const nav: Array<{ href: string; label: string; icon: string; badge?: BadgeKey }
     { href: "/dashboard", label: "Overview", icon: "home" },
     { href: "/dashboard/projects", label: "Projects", icon: "grid", badge: "projects" },
     { href: "/projects", label: "Browse projects", icon: "search" },
+    { href: "/search-investors", label: "Search Investors", icon: "users" },
     { href: "/dashboard/messages", label: "Messages", icon: "inbox", badge: "unreadMessages" },
     { href: "/dashboard/plans", label: "Plans", icon: "plans", badge: "plans" },
 ];
@@ -52,6 +53,12 @@ function Icon({ name, className }: { name: string; className?: string }) {
             return (
                 <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            );
+        case "close":
+            return (
+                <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
             );
         case "home":
@@ -218,7 +225,7 @@ async function fetchMe(signal?: AbortSignal): Promise<MeResponse> {
 export default function Sidebar({ counts }: { counts?: SidebarCounts }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { sidebarOpen, toggleSidebar } = useDashboardUI();
+    const { sidebarOpen, toggleSidebar, setSidebar, isMobile } = useDashboardUI();
 
     const [me, setMe] = useState<MeResponse | null>(null);
     const [err, setErr] = useState<string | null>(null);
@@ -243,6 +250,15 @@ export default function Sidebar({ counts }: { counts?: SidebarCounts }) {
             ctrl.abort();
         };
     }, []);
+
+    // Close sidebar when navigating on mobile (only on actual navigation, not initial mount)
+    const prevPathnameRef = useRef(pathname);
+    useEffect(() => {
+        if (isMobile && prevPathnameRef.current !== pathname) {
+            setSidebar(false);
+        }
+        prevPathnameRef.current = pathname;
+    }, [pathname, isMobile, setSidebar]);
 
     const avatarSrc = useMemo(() => mediaUrl(me?.picture?.url || ""), [me]);
 
@@ -278,102 +294,138 @@ export default function Sidebar({ counts }: { counts?: SidebarCounts }) {
         router.push("/login");
     };
 
+    // On mobile: sidebar is an overlay with backdrop
+    // On desktop: sidebar is fixed with margin
+    
     return (
-        <aside
-            className={cx(
-                "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-white shadow-lg transition-all duration-300",
-                sidebarOpen ? "w-64" : "w-20"
+        <>
+            {/* Mobile backdrop */}
+            {isMobile && sidebarOpen && (
+                <div 
+                    className="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300"
+                    onClick={() => setSidebar(false)}
+                    aria-hidden="true"
+                />
             )}
-        >
-            <div className="flex h-16 items-center justify-between border-b px-4">
-                <Link href="/dashboard" className="flex items-center">
-                    <div className={cx("flex items-center", sidebarOpen ? "h-12" : "h-10")}>
-                        <img src="/logo.svg" alt="Logo" className={cx("block h-full", sidebarOpen ? "w-auto" : "w-10")} height={48} />
-                    </div>
-                </Link>
-                <button onClick={toggleSidebar} className="rounded-lg p-2 hover:bg-gray-100" aria-label="Toggle sidebar">
-                    <Icon name="menu" className="h-5 w-5 text-gray-600" />
-                </button>
-            </div>
-
-            <nav className="flex-1 space-y-1 p-4">
-                {nav.map((item) => {
-                    const active = pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href));
-                    const badgeValue = item.badge ? (counts?.[item.badge] ?? 0) : 0;
-                    return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cx(
-                                "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                                active ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-100"
-                            )}
-                        >
-                            <Icon name={item.icon} className="h-5 w-5" />
-                            {sidebarOpen && <span>{item.label}</span>}
-                            {sidebarOpen && item.badge && badgeValue > 0 && (
-                                <span
-                                    className={cx(
-                                        "ml-auto rounded-full px-2 py-0.5 text-xs font-bold",
-                                        item.badge === "unreadMessages" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
-                                    )}
-                                >
-                                    {badgeValue}
-                                </span>
-                            )}
-                        </Link>
-                    );
-                })}
-            </nav>
-
-            <div className="border-t p-4">
-                {err && <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{err}</div>}
-
-                <div className="flex items-center gap-3">
-                    {avatarSrc ? (
-                        <div className="h-10 w-10 overflow-hidden rounded-full bg-gray-100">
-                            <img src={avatarSrc} alt={displayName} className="h-full w-full object-cover" />
-                        </div>
-                    ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white">
-                            {initials(displayName)}
-                        </div>
-                    )}
-
-                    {sidebarOpen && (
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-bold text-gray-900">{displayName}</div>
-                            {displayEmail && <div className="truncate text-xs text-gray-500">{displayEmail}</div>}
-                        </div>
-                    )}
-                </div>
-
-                <div className={cx("mt-3 grid gap-2", sidebarOpen ? "grid-cols-1" : "grid-cols-1")}>
-                    <Link
-                        href={profileHref}
-                        className={cx(
-                            "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition",
-                            "border-gray-200 text-gray-800 hover:bg-gray-50"
-                        )}
-                        title={profileTitle}
-                    >
-                        <Icon name="user" className="h-4 w-4" />
-                        {sidebarOpen && <span>{profileLabel}</span>}
-                    </Link>
-
+            
+            {/* Mobile header bar - fixed top when sidebar closed */}
+            {isMobile && !sidebarOpen && (
+                <div className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center gap-3 border-b bg-white px-4 shadow-sm">
                     <button
-                        onClick={handleSignOut}
-                        className={cx(
-                            "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition",
-                            "border-red-200 text-red-700 hover:bg-red-50"
-                        )}
-                        title="Sign out"
+                        onClick={() => setSidebar(true)}
+                        className="rounded-lg p-2 hover:bg-gray-100"
+                        aria-label="Open menu"
                     >
-                        <Icon name="logout" className="h-4 w-4" />
-                        {sidebarOpen && <span>Sign out</span>}
+                        <Icon name="menu" className="h-6 w-6 text-gray-700" />
+                    </button>
+                    <Link href="/dashboard" className="flex items-center">
+                        <img src="/logo.svg" alt="Logo" className="h-8" height={32} />
+                    </Link>
+                </div>
+            )}
+
+            {/* Sidebar */}
+            <aside
+                className={cx(
+                    "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-white shadow-lg transition-all duration-300",
+                    // Mobile: slide in/out from left, full width when open
+                    isMobile && !sidebarOpen && "-translate-x-full",
+                    isMobile && sidebarOpen && "translate-x-0 w-72",
+                    // Desktop: static positioning with width toggle
+                    !isMobile && sidebarOpen && "w-64",
+                    !isMobile && !sidebarOpen && "w-20"
+                )}
+            >
+                <div className="flex h-16 items-center justify-between border-b px-4">
+                    <Link href="/dashboard" className="flex items-center">
+                        <div className={cx("flex items-center", sidebarOpen ? "h-12" : "h-10")}>
+                            <img src="/logo.svg" alt="Logo" className={cx("block h-full", sidebarOpen ? "w-auto" : "w-10")} height={48} />
+                        </div>
+                    </Link>
+                    <button onClick={toggleSidebar} className="rounded-lg p-2 hover:bg-gray-100" aria-label="Toggle sidebar">
+                        <Icon name={isMobile ? "close" : "menu"} className="h-5 w-5 text-gray-600" />
                     </button>
                 </div>
-            </div>
-        </aside>
+
+                <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+                    {nav.map((item) => {
+                        const active = pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href));
+                        const badgeValue = item.badge ? (counts?.[item.badge] ?? 0) : 0;
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cx(
+                                    "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                                    active ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-100"
+                                )}
+                            >
+                                <Icon name={item.icon} className="h-5 w-5 shrink-0" />
+                                {(sidebarOpen || isMobile) && <span className="truncate">{item.label}</span>}
+                                {(sidebarOpen || isMobile) && item.badge && badgeValue > 0 && (
+                                    <span
+                                        className={cx(
+                                            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-bold",
+                                            item.badge === "unreadMessages" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
+                                        )}
+                                    >
+                                        {badgeValue}
+                                    </span>
+                                )}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                <div className="border-t p-4">
+                    {err && <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{err}</div>}
+
+                    <div className="flex items-center gap-3">
+                        {avatarSrc ? (
+                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                                <img src={avatarSrc} alt={displayName} className="h-full w-full object-cover" />
+                            </div>
+                        ) : (
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white">
+                                {initials(displayName)}
+                            </div>
+                        )}
+
+                        {(sidebarOpen || isMobile) && (
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-bold text-gray-900">{displayName}</div>
+                                {displayEmail && <div className="truncate text-xs text-gray-500">{displayEmail}</div>}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={cx("mt-3 grid gap-2", sidebarOpen || isMobile ? "grid-cols-1" : "grid-cols-1")}>
+                        <Link
+                            href={profileHref}
+                            className={cx(
+                                "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition",
+                                "border-gray-200 text-gray-800 hover:bg-gray-50"
+                            )}
+                            title={profileTitle}
+                        >
+                            <Icon name="user" className="h-4 w-4 shrink-0" />
+                            {(sidebarOpen || isMobile) && <span>{profileLabel}</span>}
+                        </Link>
+
+                        <button
+                            onClick={handleSignOut}
+                            className={cx(
+                                "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition",
+                                "border-red-200 text-red-700 hover:bg-red-50"
+                            )}
+                            title="Sign out"
+                        >
+                            <Icon name="logout" className="h-4 w-4 shrink-0" />
+                            {(sidebarOpen || isMobile) && <span>Sign out</span>}
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </>
     );
 }

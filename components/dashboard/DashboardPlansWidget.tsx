@@ -13,7 +13,7 @@ type MyPlanProjectSummary = {
     status: string | null;
 };
 
-type MyPlan = {
+export type MyPlan = {
     id: number;
     name: string | null;
     slug: string | null;
@@ -84,10 +84,10 @@ function Pill({ children, tone = "blue" }: { children: React.ReactNode; tone?: "
 }
 
 // ===== Widget =====
-export default function DashboardPlansWidget({ limit = 4 }: { limit?: number }) {
+export default function DashboardPlansWidget({ limit = 4, plans: initialPlans }: { limit?: number; plans?: MyPlan[] }) {
     const [token, setToken] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [plans, setPlans] = useState<MyPlan[]>([]);
+    const [loading, setLoading] = useState(!initialPlans);
+    const [plans, setPlans] = useState<MyPlan[]>(initialPlans || []);
     const [err, setErr] = useState<string | null>(null);
 
     useEffect(() => {
@@ -95,6 +95,11 @@ export default function DashboardPlansWidget({ limit = 4 }: { limit?: number }) 
     }, []);
 
     useEffect(() => {
+        if (initialPlans) {
+             setLoading(false);
+             return;
+        }
+
         let alive = true;
         (async () => {
             if (token === null) return;
@@ -121,7 +126,7 @@ export default function DashboardPlansWidget({ limit = 4 }: { limit?: number }) 
         return () => {
             alive = false;
         };
-    }, [token, limit]);
+    }, [token, limit, initialPlans]);
 
     const hasPlans = plans.length > 0;
     const visible = useMemo(() => plans.slice(0, limit), [plans, limit]);

@@ -9,7 +9,7 @@ type MediaLite = { id: number | null; url: string | null; type: string | null; h
 type RoleLite = { id: number | null; name: string | null; slug: string | null } | null;
 type LocationLite = { country?: string; state?: string; city?: string; iso2?: string } | null;
 
-type MeResponse = {
+export type MeResponse = {
     id: number | null;
     hash?: string | null; // optional profile edit hash (fallback)
     fullName: string | null;
@@ -99,13 +99,23 @@ async function fetchMe(signal?: AbortSignal): Promise<MeResponse> {
 }
 
 /* ===================== Component ===================== */
-export default function MeSummaryCard({ className }: { className?: string }) {
-    const [me, setMe] = useState<MeResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+export default function MeSummaryCard({ className, user }: { className?: string; user?: MeResponse | null }) {
+    const [me, setMe] = useState<MeResponse | null>(user ?? null);
+    const [loading, setLoading] = useState(!user);
     const [err, setErr] = useState<string | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
+    // Sync prop changes
     useEffect(() => {
+        if (user) {
+            setMe(user);
+            setLoading(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (user) return; // Skip fetch if user provided
+
         abortRef.current?.abort();
         const ctrl = new AbortController();
         abortRef.current = ctrl;
@@ -126,7 +136,7 @@ export default function MeSummaryCard({ className }: { className?: string }) {
             alive = false;
             ctrl.abort();
         };
-    }, []);
+    }, [user]);
 
     const bannerUrl = useMemo(() => mediaUrl(me?.banner?.url || ""), [me]);
     const avatarUrl = useMemo(() => mediaUrl(me?.picture?.url || ""), [me]);

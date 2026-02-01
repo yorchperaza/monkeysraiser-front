@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 type KeepOpts = {
     idleMs?: number;
@@ -11,7 +12,8 @@ type KeepOpts = {
 
 type MLMessage =
     | { type: 'activity'; ts: number }
-    | { type: 'token_refreshed' };
+    | { type: 'token_refreshed' }
+    | { type: 'session_expired' };
 
 type RefreshResponse = { token?: string };
 
@@ -23,8 +25,10 @@ export default function SessionKeeper({
                                           checkEveryMs = 30 * 1000,
                                           heartbeatEveryMs = 5 * 60 * 1000,
                                       }: KeepOpts) {
+    const router = useRouter();
     const lastActivity = useRef<number>(Date.now());
     const bc = useRef<BroadcastChannel | null>(null);
+    const hasRedirected = useRef(false);
 
     function getAccessExpMs(): number | null {
         const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
@@ -38,9 +42,37 @@ export default function SessionKeeper({
         }
     }
 
+    function isTokenExpired(): boolean {
+        const expMs = getAccessExpMs();
+        if (!expMs) return true; // No token = expired
+        return Date.now() >= expMs;
+    }
+
+    function redirectToLogin(): void {
+        if (hasRedirected.current) return;
+        hasRedirected.current = true;
+        
+        // Clear tokens
+        try {
+            localStorage.removeItem('auth_token');
+            sessionStorage.removeItem('auth_token');
+        } catch {}
+        
+        // Notify other tabs
+        bc.current?.postMessage({ type: 'session_expired' } satisfies MLMessage);
+        
+        // Redirect to login
+        router.push('/login');
+    }
+
     async function refreshIfNeeded(): Promise<void> {
         const expMs = getAccessExpMs();
-        if (!expMs) return;
+        
+        // If no token or already expired, redirect to login
+        if (!expMs || Date.now() >= expMs) {
+            redirectToLogin();
+            return;
+        }
 
         const now = Date.now();
         const inactive = now - lastActivity.current > idleMs;
@@ -66,9 +98,15 @@ export default function SessionKeeper({
                         sessionStorage.setItem('auth_token', json.token);
                     }
                     bc.current?.postMessage({ type: 'token_refreshed' } satisfies MLMessage);
+                } else if (res.status === 401) {
+                    // Refresh failed, session is invalid
+                    redirectToLogin();
                 }
             } catch {
-                // ignore; try again on next tick
+                // Network error - check if token is now expired
+                if (isTokenExpired()) {
+                    redirectToLogin();
+                }
             }
         }
     }
@@ -91,9 +129,21 @@ export default function SessionKeeper({
             bc.current?.postMessage({ type: 'activity', ts: lastActivity.current } satisfies MLMessage);
         };
         const onVisibility = (): void => {
-            if (!document.hidden) touch();
+            if (!document.hidden) {
+                touch();
+                // Check token expiry when tab becomes visible
+                if (isTokenExpired()) {
+                    redirectToLogin();
+                }
+            }
         };
-        const onFocus = (): void => touch();
+        const onFocus = (): void => {
+            touch();
+            // Check token expiry on focus
+            if (isTokenExpired()) {
+                redirectToLogin();
+            }
+        };
 
         // No `any` here: EventListener is `(evt: Event) => void`
         const handlers: Array<[keyof DocumentEventMap, EventListener]> = [
@@ -111,8 +161,17 @@ export default function SessionKeeper({
             if (ev.data?.type === 'activity') {
                 lastActivity.current = Math.max(lastActivity.current, Number(ev.data.ts) || Date.now());
             }
+            if (ev.data?.type === 'session_expired') {
+                // Another tab detected session expiry, redirect this tab too
+                redirectToLogin();
+            }
             // 'token_refreshed' -> no-op
         });
+
+        // Initial check - if token is already expired, redirect immediately
+        if (isTokenExpired()) {
+            redirectToLogin();
+        }
 
         const t1 = window.setInterval(refreshIfNeeded, checkEveryMs);
         const t2 = heartbeatEveryMs > 0 ? window.setInterval(heartbeat, heartbeatEveryMs) : null;

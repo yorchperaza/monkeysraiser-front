@@ -6,7 +6,7 @@ import Link from "next/link";
 // ---------- Types matching /me/projects payload ----------
 type MediaLite = { id: number | null; url: string | null; type: string | null; hash: string | null } | null;
 
-type ProjectLite = {
+export type ProjectLite = {
     hash: string | null;
     title: string | null;
     tagline?: string | null;
@@ -167,9 +167,11 @@ function ListRowSkeleton() {
 export default function MyProjectsList({
                                            initialPerPage = 12,
                                            className,
+                                           projects,
                                        }: {
     initialPerPage?: number;
     className?: string;
+    projects?: ProjectLite[];
 }) {
     // ✅ Default to ALL first
     const [tab, setTab] = useState<"published" | "all">("all");
@@ -178,8 +180,19 @@ export default function MyProjectsList({
     const [perPage, setPerPage] = useState(clamp(initialPerPage, 6, 48));
     const [sort, setSort] = useState<"recent" | "boost">("recent");
 
-    const [data, setData] = useState<MyProjectsResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+    // Track if we're using prop data (dashboard mode) vs self-fetching
+    const usingPropData = Boolean(projects);
+
+    // Initialize with prop data if available
+    const [data, setData] = useState<MyProjectsResponse | null>(projects ? {
+        page: 1,
+        perPage: initialPerPage,
+        total: projects.length,
+        pages: 1,
+        items: projects
+    } : null);
+    
+    const [loading, setLoading] = useState(!projects);
     const [err, setErr] = useState<string | null>(null);
 
     const [q, setQ] = useState("");
@@ -188,8 +201,49 @@ export default function MyProjectsList({
 
     const includeUnpublished = tab === "all";
 
-    // Fetcher (defer setState to a microtask to avoid set-state-in-effect lint)
+    // Client-side filtered items when using prop data
+    const filteredItems = useMemo(() => {
+        if (!usingPropData || !projects) return data?.items ?? [];
+        
+        let filtered = [...projects];
+        
+        // Filter by tab (published vs all)
+        if (tab === "published") {
+            filtered = filtered.filter(p => (p.status ?? "").toLowerCase() === "published");
+        }
+        
+        // Filter by search query
+        if (q.trim()) {
+            const query = q.toLowerCase();
+            filtered = filtered.filter(p => 
+                (p.title ?? "").toLowerCase().includes(query) ||
+                (p.tagline ?? "").toLowerCase().includes(query)
+            );
+        }
+        
+        // Sort
+        if (sort === "boost") {
+            filtered.sort((a, b) => {
+                if (a.superBoost && !b.superBoost) return -1;
+                if (!a.superBoost && b.superBoost) return 1;
+                if (a.boost && !b.boost) return -1;
+                if (!a.boost && b.boost) return 1;
+                return 0;
+            });
+        }
+        // "recent" is default order from backend
+        
+        return filtered;
+    }, [usingPropData, projects, data, tab, q, sort]);
+
+    // Fetcher - only runs when NOT using prop data
     useEffect(() => {
+        // Skip fetch entirely if we have projects from props (dashboard mode)
+        if (usingPropData) {
+            setLoading(false);
+            return;
+        }
+
         let cancelled = false;
 
         // rotate controllers safely
@@ -229,27 +283,26 @@ export default function MyProjectsList({
             cancelled = true;
             ctrl.abort();
         };
-    }, [page, perPage, includeUnpublished, q, sort]);
+    }, [page, perPage, includeUnpublished, q, sort, usingPropData]);
 
-    const items = useMemo(() => data?.items ?? [], [data]);
+    // Use filtered items when using prop data, otherwise use data items
+    // In dashboard mode (usingPropData), limit to 12 items but keep total for "View all" button
+    const items = useMemo(() => {
+        const baseItems = usingPropData ? filteredItems : (data?.items ?? []);
+        return usingPropData ? baseItems.slice(0, 12) : baseItems;
+    }, [usingPropData, filteredItems, data]);
 
-    const total = data?.total ?? 0;
-    const pages = data?.pages ?? 1;
+    const total = usingPropData ? filteredItems.length : (data?.total ?? 0);
+    const pages = usingPropData ? 1 : (data?.pages ?? 1);
     const canPrev = page > 1;
     const canNext = page < pages;
 
     return (
         <section className={classNames("rounded-2xl bg-white p-6 shadow-lg", className)}>
             {/* Header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="text-xl font-black text-gray-900">My Projects</h2>
-                    <p className="text-sm text-gray-600">
-                        {tab === "published" ? "Projects visible to everyone" : "All your projects."}
-                    </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
+            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                {/* Title + Tabs grouped together */}
+                <div className="flex flex-wrap items-center gap-4">
                     {/* Tabs — All first */}
                     <div className="inline-flex rounded-xl bg-slate-100 p-1 shadow-inner">
                         <button
@@ -279,26 +332,10 @@ export default function MyProjectsList({
                             Published
                         </button>
                     </div>
+                </div>
 
-                    {/* Filters (hook up to drawer if needed) */}
-                    <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm font-bold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                        aria-label="Open filters"
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-                            <path
-                                d="M3 5h18l-7 8v5l-4 2v-7L3 5z"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
-                        </svg>
-                        Filters
-                    </button>
-
-                    {/* Search */}
+                {/* Search - only show if NOT in dashboard mode or always show if you prefer */}
+                {!usingPropData && (
                     <div className="relative">
                         <input
                             value={q}
@@ -316,44 +353,47 @@ export default function MyProjectsList({
                             ⌘K
                         </span>
                     </div>
+                )}
 
-                    {/* Sort */}
-                    <select
-                        value={sort}
-                        onChange={(e) => {
-                            const v = (e.target.value as "recent" | "boost") || "recent";
-                            startTransition(() => {
-                                setSort(v);
-                                setPage(1);
-                            });
-                        }}
-                        className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm font-bold text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        aria-label="Sort"
-                    >
-                        <option value="recent">Recent</option>
-                        <option value="boost">Boosted first</option>
-                    </select>
+                {/* Sort & Per-page only in standalone mode */}
+                {!usingPropData && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={sort}
+                            onChange={(e) => {
+                                const v = (e.target.value as "recent" | "boost") || "recent";
+                                startTransition(() => {
+                                    setSort(v);
+                                    setPage(1);
+                                });
+                            }}
+                            className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm font-bold text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            aria-label="Sort"
+                        >
+                            <option value="recent">Recent</option>
+                            <option value="boost">Boosted first</option>
+                        </select>
 
-                    {/* Per page */}
-                    <select
-                        value={perPage}
-                        onChange={(e) => {
-                            const v = clamp(parseInt(e.target.value, 10) || 12, 6, 48);
-                            startTransition(() => {
-                                setPerPage(v);
-                                setPage(1);
-                            });
-                        }}
-                        className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm font-bold text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        aria-label="Per page"
-                    >
-                        {[6, 12, 24, 36, 48].map((n) => (
-                            <option key={n} value={n}>
-                                {n} / page
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                        <select
+                            value={perPage}
+                            onChange={(e) => {
+                                const v = clamp(parseInt(e.target.value, 10) || 12, 6, 48);
+                                startTransition(() => {
+                                    setPerPage(v);
+                                    setPage(1);
+                                });
+                            }}
+                            className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm font-bold text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            aria-label="Per page"
+                        >
+                            {[6, 12, 24, 36, 48].map((n) => (
+                                <option key={n} value={n}>
+                                    {n} / page
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
 
             {/* Error banner */}
@@ -414,118 +454,97 @@ export default function MyProjectsList({
                             return (
                                 <div
                                     key={projectKey(p, idx)}
-                                    className="group flex items-stretch gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md"
+                                    className="group rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:shadow-md"
                                 >
-                                    {/* Thumb */}
-                                    <div className="relative h-24 w-40 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                                        {img ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={img}
-                                                alt={p.title ?? "Project"}
-                                                className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                                            />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-3xl font-black text-gray-300">
-                                                {letter}
-                                            </div>
-                                        )}
-                                        {(p.superBoost || p.boost) && (
-                                            <div className="absolute left-2 top-2 flex gap-2">
-                                                {p.superBoost && (
-                                                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                                                        🚀 Super
-                                                    </span>
-                                                )}
-                                                {!p.superBoost && p.boost && (
-                                                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-bold text-yellow-700">
-                                                        ⚡ Boost
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                        {st && (
-                                            <span
-                                                className={classNames(
-                                                    "absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold",
-                                                    st.cls
-                                                )}
-                                            >
-                                                {st.label}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Middle content */}
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <Link
-                                                    href={p.hash ? `/projects/${p.hash}` : "#"}
-                                                    className="line-clamp-1 text-sm font-bold text-gray-900 hover:underline"
-                                                >
-                                                    {p.title ?? "Untitled project"}
-                                                </Link>
-                                                {p.tagline && (
-                                                    <div className="mt-0.5 line-clamp-2 text-xs text-gray-600">{p.tagline}</div>
-                                                )}
-
-                                                <div className="mt-1 flex flex-wrap gap-1 text-[10px]">
-                                                    {p.isOwner && (
-                                                        <span className="rounded-full bg-blue-100 px-2 py-0.5 font-bold text-blue-700">Owner</span>
-                                                    )}
-                                                    {!p.isOwner && p.isContributor && (
-                                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">
-                                                            Contributor
-                                                        </span>
-                                                    )}
+                                    {/* Top row: Image + Title + Stage */}
+                                    <div className="flex gap-3">
+                                        {/* Thumbnail */}
+                                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                                            {img ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={img}
+                                                    alt={p.title ?? "Project"}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center text-xl font-black text-gray-300">
+                                                    {letter}
                                                 </div>
-                                            </div>
-
-                                            {p.stage && (
-                                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                                                    {p.stage}
+                                            )}
+                                            {/* Boost badge */}
+                                            {(p.superBoost || p.boost) && (
+                                                <span className={classNames(
+                                                    "absolute left-1 top-1 rounded px-1 py-0.5 text-[8px] font-bold",
+                                                    p.superBoost ? "bg-purple-100 text-purple-700" : "bg-yellow-100 text-yellow-700"
+                                                )}>
+                                                    {p.superBoost ? "🚀" : "⚡"}
                                                 </span>
                                             )}
                                         </div>
-
-                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5">
-                                                📍 {shortLocation(p.location)}
-                                            </span>
-                                            {Array.isArray(p.categories) &&
-                                                p.categories.slice(0, 2).map((c) => (
-                                                    <span key={c} className="rounded-full bg-gray-50 px-2 py-0.5">
-                                                        {c}
+                                        
+                                        {/* Title + Stage + Status */}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <Link
+                                                    href={p.hash ? `/projects/${p.hash}` : "#"}
+                                                    className="line-clamp-2 text-sm font-bold text-gray-900 hover:underline"
+                                                >
+                                                    {p.title ?? "Untitled project"}
+                                                </Link>
+                                                {p.stage && (
+                                                    <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                                        {p.stage}
                                                     </span>
-                                                ))}
-                                            {Array.isArray(p.categories) && p.categories.length > 2 && (
-                                                <span className="rounded-full bg-gray-50 px-2 py-0.5">+{p.categories.length - 2}</span>
-                                            )}
-                                        </div>
-
-                                        <div className="mt-2 text-xs text-gray-600">
-                                            <span className="font-bold text-gray-900">{target}</span> target
+                                                )}
+                                            </div>
+                                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                {st && (
+                                                    <span className={classNames("rounded-full px-2 py-0.5 text-[10px] font-bold", st.cls)}>
+                                                        {st.label}
+                                                    </span>
+                                                )}
+                                                {p.isOwner && (
+                                                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">Owner</span>
+                                                )}
+                                                <span className="text-[10px] text-gray-500">
+                                                    📍 {shortLocation(p.location)}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-
-                                    {/* Right actions */}
-                                    <div className="flex w-36 shrink-0 flex-col items-end justify-between">
+                                    
+                                    {/* Middle: Categories + Target */}
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                                        {Array.isArray(p.categories) &&
+                                            p.categories.slice(0, 2).map((c) => (
+                                                <span key={c} className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
+                                                    {c}
+                                                </span>
+                                            ))}
+                                        {Array.isArray(p.categories) && p.categories.length > 2 && (
+                                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
+                                                +{p.categories.length - 2}
+                                            </span>
+                                        )}
+                                        <span className="ml-auto text-xs font-bold text-gray-900">{target}</span>
+                                    </div>
+                                    
+                                    {/* Bottom: Actions */}
+                                    <div className="mt-3 flex items-center gap-2">
                                         <Link
                                             href={p.hash ? `/projects/${p.hash}` : "#"}
-                                            className="rounded-lg px-3 py-2 text-xs font-bold text-white"
+                                            className="flex-1 rounded-lg py-2 text-center text-xs font-bold text-white"
                                             style={{ background: `linear-gradient(135deg, ${brand.primary}, ${brand.darkBlue})` }}
                                         >
                                             View
                                         </Link>
-                                        {p.isOwner && (
-                                            <Link
-                                                href={p.hash ? `/dashboard/projects/${p.hash}` : "#"}
-                                                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                                            >
-                                                Edit
-                                            </Link>
-                                        )}
+                                        <Link
+                                            href={p.hash ? `/dashboard/projects/${p.hash}` : "#"}
+                                            className="flex-1 rounded-lg border border-gray-200 py-2 text-center text-xs font-bold text-gray-700 hover:bg-gray-50"
+                                        >
+                                            Edit
+                                        </Link>
                                     </div>
                                 </div>
                             );
@@ -533,36 +552,58 @@ export default function MyProjectsList({
                     </div>
                 )}
 
-                {/* Footer / Pagination */}
-                {!loading && (data?.items?.length ?? 0) > 0 && (
+                {/* Footer - show "View all" in dashboard mode, or pagination otherwise */}
+                {!loading && items.length > 0 && (
                     <div className="mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row">
-                        <div className="text-sm text-gray-600">
-                            Page <span className="font-semibold text-gray-900">{page}</span> of{" "}
-                            <span className="font-semibold text-gray-900">{pages}</span> •{" "}
-                            <span className="font-semibold text-gray-900">{total}</span> total
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                disabled={!canPrev || isPending}
-                                onClick={() => canPrev && startTransition(() => setPage((p) => Math.max(1, p - 1)))}
-                                className={classNames(
-                                    "rounded-xl border px-3 py-2 text-sm",
-                                    canPrev ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
+                        {usingPropData ? (
+                            /* Dashboard mode: show count and View All link */
+                            <>
+                                <div className="text-sm text-gray-600">
+                                    Showing <span className="font-semibold text-gray-900">{Math.min(items.length, 12)}</span> of{" "}
+                                    <span className="font-semibold text-gray-900">{total}</span> projects
+                                </div>
+                                {total > 12 && (
+                                    <Link
+                                        href="/dashboard/projects"
+                                        className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-lg transition hover:shadow-xl"
+                                        style={{ background: `linear-gradient(135deg, ${brand.primary}, ${brand.darkBlue})` }}
+                                    >
+                                        View all projects →
+                                    </Link>
                                 )}
-                            >
-                                ← Prev
-                            </button>
-                            <button
-                                disabled={!canNext || isPending}
-                                onClick={() => canNext && startTransition(() => setPage((p) => p + 1))}
-                                className={classNames(
-                                    "rounded-xl border px-3 py-2 text-sm",
-                                    canNext ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
-                                )}
-                            >
-                                Next →
-                            </button>
-                        </div>
+                            </>
+                        ) : (
+                            /* Standalone mode: show pagination */
+                            <>
+                                <div className="text-sm text-gray-600">
+                                    Page <span className="font-semibold text-gray-900">{page}</span> of{" "}
+                                    <span className="font-semibold text-gray-900">{pages}</span> •{" "}
+                                    <span className="font-semibold text-gray-900">{total}</span> total
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        disabled={!canPrev || isPending}
+                                        onClick={() => canPrev && startTransition(() => setPage((p) => Math.max(1, p - 1)))}
+                                        className={classNames(
+                                            "rounded-xl border px-3 py-2 text-sm",
+                                            canPrev ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
+                                        )}
+                                    >
+                                        ← Prev
+                                    </button>
+                                    <button
+                                        disabled={!canNext || isPending}
+                                        onClick={() => canNext && startTransition(() => setPage((p) => p + 1))}
+                                        className={classNames(
+                                            "rounded-xl border px-3 py-2 text-sm",
+                                            canNext ? "border-gray-200 hover:bg-gray-50" : "cursor-not-allowed border-gray-100 text-gray-300"
+                                        )}
+                                    >
+                                        Next →
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
