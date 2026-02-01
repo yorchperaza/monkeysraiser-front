@@ -25,7 +25,7 @@ export default function RootLayout({
         >
         <main className="flex-1">{children}</main>
         <CookiesBanner />
-        <AnalyticsGate gaMeasurementId={process.env.NEXT_PUBLIC_GA_ID} />
+        <AnalyticsGate gaMeasurementId={process.env.NEXT_PUBLIC_GA_ID || "G-DLFXEY25GS"} />
         <SupportBubble tokenStorageKey="auth_token" />
         </body>
         </html>

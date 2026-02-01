@@ -114,6 +114,29 @@ export default function InvestorCard({ investor }: { investor: Investor }) {
         }
     };
 
+    const handleWebsiteClick = (e: React.MouseEvent) => {
+        // If logged in, allow unlimited access
+        if (isLoggedIn()) {
+            return; // Let the link open normally
+        }
+        
+        const currentViews = getViewCount();
+        
+        // If already at or over limit, show modal and prevent navigation
+        if (currentViews >= VIEW_LIMIT) {
+            e.preventDefault();
+            setShowModal(true);
+            return;
+        }
+        
+        // Increment view count
+        const newCount = incrementViewCount();
+        
+        if (newCount >= VIEW_LIMIT) {
+            setCanView(false);
+        }
+    };
+
     return (
         <>
             <div className="group flex flex-col md:flex-row items-start md:items-stretch gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
@@ -199,6 +222,7 @@ export default function InvestorCard({ investor }: { investor: Investor }) {
                             href={investor.website}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={handleWebsiteClick}
                             className="w-full md:w-auto whitespace-nowrap rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 text-center"
                         >
                             Website ↗
