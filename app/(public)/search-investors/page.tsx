@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import InvestorFilters, {
   SearchFilters,
@@ -76,7 +76,7 @@ function buildURLParams(filters: SearchFilters, page: number): string {
   return params.toString();
 }
 
-export default function InvestorSearchPage() {
+function InvestorSearchContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -379,5 +379,45 @@ export default function InvestorSearchPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function SearchLoadingSkeleton() {
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <section className="relative overflow-hidden py-12" style={{ background: `linear-gradient(180deg, #EBF5FF, #FFFFFF)` }}>
+        <div className="relative mx-auto max-w-7xl px-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-12 w-64 rounded-lg bg-gray-200" />
+            <div className="h-6 w-96 rounded bg-gray-100" />
+            <div className="h-14 w-full rounded-2xl bg-gray-200" />
+          </div>
+        </div>
+      </section>
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <div className="flex gap-8">
+          <div className="hidden w-80 shrink-0 lg:block">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 w-32 rounded bg-gray-200" />
+              <div className="h-40 rounded-xl bg-gray-100" />
+              <div className="h-40 rounded-xl bg-gray-100" />
+            </div>
+          </div>
+          <div className="flex-1 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 animate-pulse rounded-2xl bg-gray-100" />
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export default function InvestorSearchPage() {
+  return (
+    <Suspense fallback={<SearchLoadingSkeleton />}>
+      <InvestorSearchContent />
+    </Suspense>
   );
 }
