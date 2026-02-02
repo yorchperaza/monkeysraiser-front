@@ -570,7 +570,17 @@ export default function PlansAndProjectsPage() {
                                     <div className="h-64 rounded-2xl bg-gray-100 animate-pulse" />
                                 </div>
                             ) : plans.length > 0 ? (
-                                <div className="grid gap-6 sm:grid-cols-2">{plans.map((p) => <PlanCard key={p.id} plan={p} />)}</div>
+                                <div className="grid gap-6 sm:grid-cols-2">
+                                    {[...plans]
+                                        .sort((a, b) => {
+                                            const aSlug = norm(a.slug) || norm(a.name);
+                                            const bSlug = norm(b.slug) || norm(b.name);
+                                            const aPrice = a.price ?? PACKAGE_COPY[aSlug]?.priceCents ?? Infinity;
+                                            const bPrice = b.price ?? PACKAGE_COPY[bSlug]?.priceCents ?? Infinity;
+                                            return aPrice - bPrice;
+                                        })
+                                        .map((p) => <PlanCard key={p.id} plan={p} />)}
+                                </div>
                             ) : (
                                 <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">No plans available right now.</div>
                             )}
