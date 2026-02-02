@@ -190,10 +190,6 @@ function SectionCard({ title, children }: { title: string; children: React.React
     );
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
-    return <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 border border-blue-200">{children}</span>;
-}
-
 // ===== Payment Form (Stripe Payment Element) =====
 function PaymentForm({
                          onSuccess,
@@ -461,7 +457,6 @@ export default function PlansAndProjectsPage() {
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-black text-gray-900">{displayName}</h3>
-                        <Pill>{plan.slug || "package"}</Pill>
                     </div>
 
                     <div className="text-3xl font-extrabold text-gray-900">
