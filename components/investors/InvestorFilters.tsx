@@ -30,12 +30,12 @@ const FIRM_TYPES: { display: string; value: string }[] = [
 
 // Funding stages from database (display -> DB value)
 const FUNDING_STAGES: { display: string; value: string }[] = [
-    { display: "Idea/Patent", value: "1. Idea or Patent" },
-    { display: "Prototype", value: "2. Prototype" },
-    { display: "Early Revenue", value: "3. Early Revenue" },
-    { display: "Scaling", value: "4. Scaling" },
-    { display: "Growth", value: "5. Growth" },
-    { display: "Pre-IPO", value: "6. Pre-IPO" },
+    { display: "Idea/Patent", value: "Idea or Patent" },
+    { display: "Prototype", value: "Prototype" },
+    { display: "Early Revenue", value: "Early Revenue" },
+    { display: "Scaling", value: "Scaling" },
+    { display: "Growth", value: "Growth" },
+    { display: "Pre-IPO", value: "Pre-IPO" },
 ];
 
 // Full country list from database (with display names mapped to DB values)
