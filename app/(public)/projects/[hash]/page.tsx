@@ -992,26 +992,86 @@ export default function ProjectDetailPage() {
     const canView = !isPending || isAuthor || isContributor;
     const hasFullAccess =
         isAuthor || isContributor || accessStatus === "approved";
-    // Load project by hash
+    // Combined parallel data loading - eliminates waterfall
     useEffect(() => {
         if (!projectHash) return;
 
         let mounted = true;
+        const storedToken = typeof window !== "undefined" 
+            ? localStorage.getItem("auth_token") || "" 
+            : "";
+        
+        setToken(storedToken);
 
+        // Fetch all data in parallel
         (async () => {
+            const headers: Record<string, string> = storedToken 
+                ? { Authorization: `Bearer ${storedToken}` } 
+                : {};
+
             try {
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/projects/${encodeURIComponent(
-                        projectHash
-                    )}`
-                );
-                if (!res.ok) throw new Error("Project not found");
-                const data = await res.json();
-                if (mounted) setProject(data);
+                // Start all requests simultaneously
+                const [projectRes, meRes, favoriteRes, accessRes] = await Promise.allSettled([
+                    // 1. Project data (always needed)
+                    fetch(`${BE}/projects/${encodeURIComponent(projectHash)}`),
+                    // 2. User info (if logged in)
+                    storedToken 
+                        ? fetch(`${BE}/me`, { headers }) 
+                        : Promise.resolve(null),
+                    // 3. Favorite status (if logged in)
+                    storedToken 
+                        ? fetch(`${BE}/projects/${encodeURIComponent(projectHash)}/favorite`, { headers }) 
+                        : Promise.resolve(null),
+                    // 4. Access status (if logged in)
+                    storedToken 
+                        ? fetch(`${BE}/projects/${encodeURIComponent(projectHash)}/access/me`, { headers }) 
+                        : Promise.resolve(null),
+                ]);
+
+                if (!mounted) return;
+
+                // Process project data
+                if (projectRes.status === "fulfilled" && projectRes.value?.ok) {
+                    const data = await projectRes.value.json();
+                    setProject(data);
+                }
+
+                // Process user info
+                if (meRes.status === "fulfilled" && meRes.value?.ok) {
+                    const data = await meRes.value.json();
+                    setMe({ id: data.id, email: data.email });
+                } else {
+                    setMe(null);
+                }
+
+                // Process favorite status
+                if (favoriteRes.status === "fulfilled" && favoriteRes.value?.ok) {
+                    const data = await favoriteRes.value.json();
+                    setIsSaved(!!data.favorited);
+                } else {
+                    setIsSaved(false);
+                }
+
+                // Process access status
+                if (accessRes.status === "fulfilled" && accessRes.value?.ok) {
+                    const data = await accessRes.value.json();
+                    const status = (data?.status as AccessStatus | undefined) ?? "none";
+                    if (data?.hasAccess) {
+                        setAccessStatus("approved");
+                    } else {
+                        setAccessStatus(status);
+                    }
+                } else {
+                    setAccessStatus("none");
+                }
+
             } catch (e) {
-                console.error("Error loading project:", e);
+                console.error("Error loading project data:", e);
             } finally {
-                if (mounted) setLoading(false);
+                if (mounted) {
+                    setLoading(false);
+                    setMeLoading(false);
+                }
             }
         })();
 
@@ -1019,121 +1079,6 @@ export default function ProjectDetailPage() {
             mounted = false;
         };
     }, [projectHash]);
-
-    // Read auth token
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        setToken(localStorage.getItem("auth_token") || "");
-    }, []);
-
-    // Check if project is favorited
-    useEffect(() => {
-        if (!projectHash || !token) {
-            setIsSaved(false);
-            return;
-        }
-
-        let aborted = false;
-
-        (async () => {
-            try {
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/projects/${encodeURIComponent(
-                        projectHash
-                    )}/favorite`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-                if (!res.ok) {
-                    if (!aborted) setIsSaved(false);
-                    return;
-                }
-                const data = await res.json();
-                if (!aborted) setIsSaved(!!data.favorited);
-            } catch {
-                if (!aborted) setIsSaved(false);
-            }
-        })();
-
-        return () => {
-            aborted = true;
-        };
-    }, [projectHash, token]);
-
-    // Fetch current user
-    useEffect(() => {
-        if (!token) {
-            setMe(null);
-            return;
-        }
-
-        let mounted = true;
-
-        (async () => {
-            try {
-                setMeLoading(true);
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/me`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-                if (!res.ok) {
-                    if (mounted) setMe(null);
-                    return;
-                }
-                const data = await res.json();
-                if (mounted) setMe({ id: data.id, email: data.email });
-            } catch {
-                if (mounted) setMe(null);
-            } finally {
-                if (mounted) setMeLoading(false);
-            }
-        })();
-
-        return () => {
-            mounted = false;
-        };
-    }, [token]);
-
-    // Load my access status for this project
-    useEffect(() => {
-        if (!projectHash || !token) {
-            setAccessStatus("none");
-            return;
-        }
-
-        let cancelled = false;
-
-        (async () => {
-            try {
-                const res = await fetch(
-                    `${BE}/projects/${encodeURIComponent(projectHash)}/access/me`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-                if (!res.ok) {
-                    if (!cancelled) setAccessStatus("none");
-                    return;
-                }
-                const data = await res.json();
-                if (cancelled) return;
-
-                const status = (data?.status as AccessStatus | undefined) ?? "none";
-                if (data?.hasAccess) {
-                    setAccessStatus("approved");
-                } else {
-                    setAccessStatus(status);
-                }
-            } catch {
-                if (!cancelled) setAccessStatus("none");
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [projectHash, token]);
 
     // Toggle save handler with useCallback
     const toggleSave = useCallback(async () => {
